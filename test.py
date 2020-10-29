@@ -90,10 +90,32 @@ files_list = ['R06C08-C_L_0_20200826113408.mp4', 'R06C08-B_L_1_20200826113306.mp
 #                 if 
 
 
-import datetime
-dt_now = datetime.datetime.now()
-print(dt_now)
-print(str(dt_now))
+# import datetime
+# dt_now = datetime.datetime.now()
+# print(dt_now)
+# print(str(dt_now))
+
+
+
+color_pixels = [
+    [10, 20, 30],
+    [40, 50, 60],
+    [70, 80, 90],
+    [100, 110, 120],
+    [130, 140, 150]
+]
+color_pixels = np.array(color_pixels) 
+raw = color_pixels[:, 0]
+print(raw)
+raw = np.ravel(raw)
+print(raw)
+
+cluster = KMeans(n_clusters = 2)
+cluster.fit(X=raw)
+h = cluster.cluster_centers_[:, 0]
+print(h)
+
+
 
 
 

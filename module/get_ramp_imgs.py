@@ -69,7 +69,13 @@ def get_ramp_imgs(mask_info, undistort_frames, *movie_info):   #movie_infoはmai
             #box = frame[y-side/2:y+side/2, x-side/2:x+side/2]
             box = frame[y-tmp:y+tmp, x-tmp:x+tmp]
             #print(box.shape)
-            #cv2.imwrite("box/box.jpg".format(i), box)
+            #cv2.imwrite("mask_ramp_imgs/{}_{}_{}_{}_{}.jpg".format(mask_info2[0],mask_info2[1],mask_info2[2],mask_info2[3],mask_info2[4]), box)
+            # #ramp_imgを画像として一応保存　呼び出し元によって処理を分ける
+            if inspect.stack()[1].filename == "make_mask_and_normal.py":
+                cv2.imwrite("mask_ramp_imgs/{}_{}_{}_{}_{}.jpg".format(mask_info2[0],mask_info2[1],mask_info2[2],mask_info2[3],mask_info2[4]), box)
+            elif inspect.stack()[1].filename == "main.py":
+                cv2.imwrite("current_ramp_ims/{}_{}_{}_{}_{}.jpg".format(mask_info2[0],mask_info2[1],mask_info2[2],mask_info2[3],mask_info2[4]), box)
+
             ramp_imgs[i].append(box)
             
     return ramp_imgs

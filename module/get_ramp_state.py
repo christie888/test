@@ -77,13 +77,17 @@ def get_ramp_state(ramp_imgs, movie_info):
                     #print(len(color_pixels))
                     #print(type(color_pixels))
 
-                    mean = np.mean(color_pixels, axis=0)  #H,S,Vそれぞれの平均　　輝度で敷居をかけたもののみ見ているので各範囲は狭くなるはず。しかしまだ広いので輝度の高い上位数ピクセルでとる、あるいは閾値をもっと高くして明るいところだけ取れた方が良いかも
-                    if mean[0] >= 40 and mean[0] <= 80:
+                    h_mean, s_mean, v_mean = np.mean(color_pixels, axis=0)  #H,S,Vそれぞれの平均　　輝度で敷居をかけたもののみ見ているので各範囲は狭くなるはず。しかしまだ広いので輝度の高い上位数ピクセルでとる、あるいは閾値をもっと高くして明るいところだけ取れた方が良いかも
+                    if h_mean >= 40 and h_mean <= 80:
                         #print(mean, "：green")
                         color_results[i].append("green")
                     else:
                         #print(mean, "：other")
                         color_results[i].append("otehr")
+
+                    # #kmeasnsで３クラスターに分ける
+                    # h = color_pixels[:, 0] #hだけ抜き出す
+                    
                         
                 else:
                     #print("No_ramp")
