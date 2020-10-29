@@ -29,11 +29,13 @@ import module.cut_frame
 import module.undistort_frames
 import module.sum_frames
 import module.get_mask_info
-
 import module.get_ramp_imgs
 import module.get_ramp_state
 
 import inspect
+
+#メール送信
+import smtplib
 
 
 #ランプ画像からその状態情報（色、点滅情報）を抽出する関数、また結果はcsvで出力
@@ -74,6 +76,7 @@ def get_ramp_state(ramp_imgs, movie_info):
                 if len(color_pixels) >= 10:   #マスクでとってきたピクセル数が一定数以上あれば処理を行うフィルター（少なすぎるのは消滅しかけと判断）
                     #print(len(color_pixels))
                     #print(type(color_pixels))
+
                     mean = np.mean(color_pixels, axis=0)  #H,S,Vそれぞれの平均　　輝度で敷居をかけたもののみ見ているので各範囲は狭くなるはず。しかしまだ広いので輝度の高い上位数ピクセルでとる、あるいは閾値をもっと高くして明るいところだけ取れた方が良いかも
                     if mean[0] >= 40 and mean[0] <= 80:
                         #print(mean, "：green")
@@ -81,6 +84,7 @@ def get_ramp_state(ramp_imgs, movie_info):
                     else:
                         #print(mean, "：other")
                         color_results[i].append("otehr")
+                        
                 else:
                     #print("No_ramp")
                     color_results[i].append("No_ramp")
