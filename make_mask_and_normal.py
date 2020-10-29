@@ -33,6 +33,8 @@ import module.get_mask_info
 import module.get_ramp_imgs
 import module.get_ramp_state
 
+import inspect
+
 
 #一つのサーバラックには片側10箇所の撮影ポイントがあるが、テスト用動画では片側5箇所となる
 #１撮影ポイントに関する情報を得るコードを書き、それをコード内で繰り返していく
@@ -157,6 +159,16 @@ def main():
             #make_normal_state_info-----
             ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames)
             normal_state = module.get_ramp_state.get_ramp_state(ramp_imgs, movie_info)
+            #-----
+
+
+            #連結画像の作成-----
+            ramp_imgs = np.array(ramp_imgs) #ndarray化
+
+            def concat_tile(im_list_2d):
+                return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_list_2d])
+            ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
+            cv2.imwrite("mask_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
             #-----
 
 

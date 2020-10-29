@@ -164,6 +164,16 @@ def main():
             current_state = module.get_ramp_state.get_ramp_state(ramp_imgs, movie_info)
 
 
+            #連結画像の作成-----
+            ramp_imgs = np.array(ramp_imgs) #ndarray化
+
+            def concat_tile(im_list_2d):
+                return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_list_2d])
+            ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
+            cv2.imwrite("current_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
+            #-----
+
+
 
 
 
