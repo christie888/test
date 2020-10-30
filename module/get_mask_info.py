@@ -50,10 +50,11 @@ def get_mask_info(sum_img, movie_info):
         stat = np.insert(stat, 0, i)
         stats_2.append(stat)
         
-    #フィルター（オブジェクトのピクセル数）
+    #フィルター（オブジェクトのピクセル数、オブジェクトサイズ）
     filtered_stats = []
     for i, stat in enumerate(stats_2):
-        if stat[5] >=100 and stat[5]<500:   #stat[5]...オブジェクトのピクセル数（ここの条件要検討）
+        print("w: ", stat[3], "---", "h: ", stat[4])
+        if (stat[5] >=100 and stat[5]<400) and (stat[3]>=15 and stat[3]<=40) and (stat[4]>=10 and stat[4]<=40):   #stat[5]...オブジェクトのピクセル数（ここの条件要検討）
             filtered_stats.append(stat)
     #print(filtered_stats)
     

@@ -13,8 +13,11 @@ from tkinter import messagebox
 
 import sklearn 
 from sklearn.cluster import KMeans 
+
 import PIL   #PILのインストールはできないのに、その後継者のpillowをインストールするとimportできるようになる不思議設定
 from PIL import Image
+import glob
+
 from IPython.display import display
 
 import pandas as pd
@@ -64,7 +67,7 @@ def get_ramp_state(ramp_imgs, movie_info):
                 #HSVに変換
                 hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
                 
-                color_pixels = []  #その画像の中での該当ピクセルRGB
+                color_pixels = []  #その画像の中での該当ピクセルHSV
                 for k, (raw1, raw2) in enumerate(zip(hsv_img, thresh)):
                     for l, (color_pixel, thresh_pixel) in enumerate(zip(raw1, raw2)):
                         if thresh_pixel==255:
@@ -85,10 +88,17 @@ def get_ramp_state(ramp_imgs, movie_info):
                         #print(mean, "：other")
                         color_results[i].append("otehr")
 
-                    # #kmeasnsで３クラスターに分ける
-                    # h = color_pixels[:, 0] #hだけ抜き出す
+
+                    # #kmeasnsで３クラスターに分ける------
+                    #color_pixels = color_pixels.reshape((color_pixels.shape[0] * color_pixels.shape[1], 3))
+                    cluster = KMeans(n_clusters = 5)
+                    cluster.fit(X=color_pixels)
+                    sorted_centers = cluster.cluster_centers_[cluster.cluster_centers_[:,0].argsort(), :]   #hの値で昇順にソート
+                    print(sorted_centers)
+                    print(np.mean(sorted_centers[1:4, 0:1]))
+                    #----------
                     
-                        
+                    
                 else:
                     #print("No_ramp")
                     color_results[i].append("No_ramp")

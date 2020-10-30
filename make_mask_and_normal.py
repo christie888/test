@@ -13,8 +13,12 @@ from tkinter import messagebox
 
 import sklearn 
 from sklearn.cluster import KMeans 
+
 import PIL   #PILのインストールはできないのに、その後継者のpillowをインストールするとimportできるようになる不思議設定
 from PIL import Image
+from moviepy.editor import ImageSequenceClip
+
+
 from IPython.display import display
 
 import pandas as pd
@@ -162,13 +166,46 @@ def main():
             #-----
 
 
-            #連結画像の作成-----
-            ramp_imgs = np.array(ramp_imgs) #ndarray化
+            # #連結画像の作成-----
+            # ramp_imgs = np.array(ramp_imgs) #ndarray化
 
-            def concat_tile(im_list_2d):
-                return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_list_2d])
-            ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
-            cv2.imwrite("mask_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
+            # def concat_tile(im_list_2d):
+            #     return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_list_2d])
+            # ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
+            # cv2.imwrite("mask_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
+            # #-----
+
+
+            #gif画像生成-----
+            for j in range(10):
+                for mi, ns in zip(mask_info, normal_state):
+                    #cv2.putText(undistort_frames[j], '{}:{}:{}'.format(str(ns[4]), str(ns[5]), str(ns[6])), (int(mi[5]), int(mi[6])), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1, cv2.LINE_AA)
+                    cv2.putText(undistort_frames[j], '{}:{}:{}'.format(str(ns[4]), str(ns[5][0]), str(ns[6])), (int(mi[5]), int(mi[6])-10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1, cv2.LINE_AA)
+
+            undistort_frames = list(undistort_frames)
+            clip = ImageSequenceClip(undistort_frames, fps=2)
+            clip.write_gif('mask_gif/{}_{}_{}_{}.gif'.format(ruck_num, which_side, shoot_position, time_log))
+
+
+
+
+            # #まずはundistort_framesをimwrite
+            # for j, img in enumerate(undistort_frames):
+            #     dir = "mask_frame_result_info/{}_{}_{}".format(ruck_num, which_side, shoot_position)
+            #     if not os.path.exists(dir):
+            #         # ディレクトリが存在しない場合、ディレクトリを作成する
+            #         os.makedirs(dir)
+                
+                
+
+
+                
+                    #cv2.putText(img, "color",(), cv2.FONT_HERSHEY_PLAIN, 4, (255, 255, 255), 5, cv2.LINE_AA )
+
+
+                #cv2.imwrite("{}/{}_{}.jpg".format(dir, time_log, j), img)
+
+            
             #-----
 
 
