@@ -21,8 +21,12 @@ from moviepy.editor import ImageSequenceClip
 
 from IPython.display import display
 
+
 import pandas as pd
-import openpyxl
+#エクセル操作
+import openpyxl as xl
+from openpyxl.styles import PatternFill  #セルの色変更
+
 
 import csv
 
@@ -89,7 +93,8 @@ def main():
     path = "input/"
     files = os.listdir(path)
     files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
-    files_list.remove('.DS_Store')
+    if '.DS_Store' in files_list:
+        files_list.remove('.DS_Store')
 
 
     #動画ファイルのソート処理----------
@@ -234,6 +239,11 @@ def main():
             #         writer.writerows(normal_state)
             
             
+    #mask_info.csvを読み込み、中身をrevision.xcelに出力する
+    mask_info = pd.read_csv("normal_state.csv", names = ('ruck_num', 'L/R', 'shoot_position', 'time_log', 'index_in_ruck', 'color', 'L/F', 'delete'))  #dataframe
+    #print("------", mask_info.columns)
+    mask_info.to_excel("revision.xlsx", sheet_name = "change_info&delete", index=True, header=True)
+
 
 
     #この後

@@ -89,6 +89,9 @@ def get_mask_info(sum_img, movie_info):
     with open("mask_info.csv", "a") as f:
             writer = csv.writer(f)
             writer.writerows(mask_info)
-        
+    
+
+
+
     return(mask_info)
     
