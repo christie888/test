@@ -161,14 +161,6 @@ def main():
         "current_color", 
         "current_LF"
         ])
-    """
-    current_states = normal_states
-    current_states["current_color"]
-    current_states["current_LF"]
-    current_states["result"]
-    print(current_states)
-    """
-
 
     for i, movie in enumerate(files_list):
         print(i, "：", movie)
@@ -219,10 +211,6 @@ def main():
             ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
             cv2.imwrite("current_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
             """
-
-
-
-
 
             # #各種情報（撮影日時、ラック番号、L/R、撮影ポイント）をcerrent_stateリストにインサート
             # for j in range(len(current_state)):
@@ -280,7 +268,7 @@ def main():
                 writer = csv.writer(f)
                 writer.writerows(result)
             """
-    #current_statesの先頭な威rないぎょうを削除し再度indexを振り直す
+    #current_statesの先頭の不要な行を削除し、再度indexを振り直す
     current_states = current_states.reset_index(drop = True)
     current_states = current_states.drop(index = 0)
     current_states = current_states.reset_index(drop = True)

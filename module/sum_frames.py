@@ -38,7 +38,12 @@ def sum_frames(undistort_frames):
     #各フレームの閾値処理
     thresholds = []
     for frame_gray in frames_gray:
-        ret, thresh = cv2.threshold(frame_gray, 120, 255, cv2.THRESH_BINARY)
+        ret, thresh = cv2.threshold(
+            frame_gray,
+            120,  #閾値
+            255,
+            cv2.THRESH_BINARY
+            )
         thresholds.append(thresh)
     
     #各フレームの膨張&収縮 ←通常の膨張処理にした方が良いのか、カーネルは幾つにするのか、など検討の必要あり

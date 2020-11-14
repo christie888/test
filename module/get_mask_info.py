@@ -50,7 +50,9 @@ def get_mask_info(sum_img, movie_info):
 
     #statsをdf化
     stats_df = pd.DataFrame(stats, columns=["x", "y", "w", "h", "pixel"])
-
+    print("--------------------------------------")
+    print(stats_df)
+    print("--------------------------------------")
     """
     #フィルター（オブジェクトのピクセル数、オブジェクトサイズ）
     filtered_stats = []
@@ -63,11 +65,18 @@ def get_mask_info(sum_img, movie_info):
 
     #フィルター（入れないかもなので無くても問題なく動くように）
     delete_index = []
-    tmp = 25 #ramp_imgとして切り取るときの一辺
-    for row in stats_df.itertuples():  #行ごとに取得、先頭に「Index」追加
-        if (row.pixel >= 100 and row.pixel < 400) and (row.w >= 15 and row.w <= 40) and (row.h >= 10 and row.h <= 40):
+    tmp = 50 #ramp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
+    for row in stats_df.itertuples():
+        #フィルター１　フレームの縁からtmpだけ離れた範囲にあるか否か.　ramp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
+        if (row.x < tmp or row.x >1600-tmp or row.y < tmp or row.y > 1200-tmp):
             delete_index.append(row.Index)
-        if (row.x < tmp or row.x >1600-tmp or row.y < tmp or row.y > 1200-tmp):   #これは必須のフィルター。ramp_imgは(50,50,3)で切り取れないといけないので。さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
+            continue
+        #フィルター２　ピクセル数、幅、高さ
+        if (
+            row.pixel <= 100 or row.pixel >= 400
+            or row.w <= 15 or row.w >= 40
+            or row.h <= 10 or row.h >= 40
+            ):
             delete_index.append(row.Index)
     #print("delete_index", delete_index)
     stats_df = stats_df.drop(index=delete_index)
@@ -99,14 +108,7 @@ def get_mask_info(sum_img, movie_info):
     stats_df.insert(3, "time_log", movie_info[3] )
     #いらない情報[w, h, pixel]を削除
     stats_df = stats_df.drop(columns=["w", "h", "pixel"])
-    
 
-    #csv出力作業は最後にまとめて行うのでここはパス
-    """ 
-    with open("mask_info.csv", "a") as f:
-            writer = csv.writer(f)
-            writer.writerows(mask_info)
-    """
 
     return(stats_df)   #stats_dfをmask_infoとする
     

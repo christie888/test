@@ -124,7 +124,7 @@ def main():
     normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "color", "LF"])
 
 
-    #各動画に対して処理
+    #各動画に対して処理--------------------
     for i, movie in enumerate(files_list):
         cap =  cv2.VideoCapture(path + movie)
 
@@ -144,18 +144,21 @@ def main():
             frames = module.cut_frame.cut_frame(cap) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
             sum_img = module.sum_frames.sum_frames(undistort_frames) #集合画像
+            # cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
             mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
             #-----
-
-            #mask_infos = pd.concat([mask_infos, mask_info], axis=0)  #ループ外のmask_infosに追加していく　最後にcsv出力
-
             #make_normal_state_info-----
             ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames)
+            """
+            for j, row in enumerate(ramp_imgs):
+                for k, img in enumerate(row):
+                    cv2.imwrite("ramp_imgs/{}_{}_{}_frame{}_ramp{}.jpg".format(ruck_num, which_side, shoot_position, j, k),img)
+            """
             normal_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info)
             #-----
 
-            normal_states = pd.concat([normal_states, normal_state], axis=0)  #ループ外のnormal_statesに追加していく、最後にcsv出力
-
+            #ループ外のnormal_statesに追加していく、最後にcsv出力
+            normal_states = pd.concat([normal_states, normal_state], axis=0)  
 
             # #連結画像の作成-----
             # ramp_imgs = np.array(ramp_imgs) #ndarray化
@@ -167,19 +170,28 @@ def main():
             # #-----
 
 
-            #gif画像生成-----
+            #gif画像生成---------------
             """
             for j in range(len(frames)):
                 for mi, ns in zip(mask_info, normal_state):
-                    #cv2.putText(undistort_frames[j], '{}:{}:{}'.format(str(ns[4]), str(ns[5]), str(ns[6])), (int(mi[5]), int(mi[6])), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1, cv2.LINE_AA)
-                    cv2.putText(undistort_frames[j], '{}:{}:{}'.format(str(ns[4]), str(ns[5][0]), str(ns[6])), (int(mi[5]), int(mi[6])-10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1, cv2.LINE_AA)
+                    cv2.putText(
+                        undistort_frames[j],
+                        '{}:{}:{}'.format(str(ns[4]), str(ns[5][0]), str(ns[6])), 
+                        (int(mi[5]), int(mi[6])-10), 
+                        cv2.FONT_HERSHEY_PLAIN, 
+                        1, 
+                        (255, 255, 255), 
+                        1, 
+                        cv2.LINE_AA
+                        )
             """
+            
             for j, frame in enumerate(undistort_frames):
-                for row in normal_states.itertuples():
+                for row in normal_state.itertuples():
                     cv2.putText(
                         img = frame, 
                         text = '{}:{}:{}'.format(str(row.Index), str(row.color)[0], str(row.LF)), 
-                        org = (int(row.x), int(row.y-10)), 
+                        org = (int(row.x), int(row.y)), 
                         fontFace =  cv2.FONT_HERSHEY_PLAIN, 
                         fontScale = 1,
                         color = (255, 255, 255), 
@@ -187,29 +199,11 @@ def main():
                         lineType = cv2.LINE_AA
                         )
                     undistort_frames[j] = frame
+
             undistort_frames = list(undistort_frames)  #gifにするのに標準リスト化
             clip = ImageSequenceClip(undistort_frames, fps=2)
             clip.write_gif('mask_gif/{}_{}_{}_{}.gif'.format(ruck_num, which_side, shoot_position, time_log))
-
-
-            # #まずはundistort_framesをimwrite
-            # for j, img in enumerate(undistort_frames):
-            #     dir = "mask_frame_result_info/{}_{}_{}".format(ruck_num, which_side, shoot_position)
-            #     if not os.path.exists(dir):
-            #         # ディレクトリが存在しない場合、ディレクトリを作成する
-            #         os.makedirs(dir)
-                
-                
-                    #cv2.putText(img, "color",(), cv2.FONT_HERSHEY_PLAIN, 4, (255, 255, 255), 5, cv2.LINE_AA )
-
-
-                #cv2.imwrite("{}/{}_{}.jpg".format(dir, time_log, j), img)
-
-            
-            #-----
-
-
-            #確認用のgifをshootpointごとに作成する
+            #---------------gif画像生成
             
 
             #各種情報（撮影日時、ラック番号、L/R、撮影ポイント）をnormal_stateリストにインサート
@@ -257,6 +251,8 @@ def main():
     #現在、パスがめちゃくちゃなので修正
     #現在、一つの動画に対してしか判定していないので修正
     #
+
+    #--------------------各動画に対して処理
 
 
 
