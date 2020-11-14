@@ -31,21 +31,17 @@ import inspect
 
 #マスク情報を使ってランプ画像を切り抜く関数
 #input:mask_info, frames　　　output:ramp_imgs
-def get_ramp_imgs(mask_info, undistort_frames, *movie_info):   #movie_infoはmainから呼び出した時だけに使う可変変数
-    #重心を中心とする正方形の一辺　　　　　←横範囲はランプ間距離が近い+レールがずれにくいのでそんなに範囲取らなくて良いけど、y範囲は大きめにとった長方形で切り出すのがベターかもしれない。今後検討。
-    side = 50
+def get_ramp_imgs(mask_info, undistort_frames):
+    side = 50  #重心を中心とする正方形の一辺（※横範囲はランプ間距離が遠い+レールがずれにくいのでそんなに範囲取らなくて良いけど、y範囲は大きめにとった長方形で切り出すのがベターかもしれない。今後検討。）
     tmp = int(side/2)
 
-    # print("mask_info...:", len(mask_info))
-    # print("one of a mask_info...:", len(mask_info[0]))
-    # print("undistort_frames...:", len(undistort_frames))
-    # print("one of a undistort_frames...:", len(undistort_frames[0]))
-    # print("movie_info：", len(movie_info[0]))
-
+    #　※main.py内で事前にnormal_stateを切り分けているので、呼び出し元によって分ける必要がなくなった
+    """
     #呼び出し元によって処理を分ける
     if inspect.stack()[1].filename == "make_mask_and_normal.py":
         mask_info2 = mask_info
     elif inspect.stack()[1].filename == "main.py":
+        
         mask_info2 = []
         #mask_infoから今着目している動画情報に一致する箇所を抜き出す（可変引数の仕様なのかmovie_infoリストはさらにリストに入れ込まれて無駄に２次元になっているので[0]番目を指定する）
         for each in mask_info:
@@ -55,28 +51,19 @@ def get_ramp_imgs(mask_info, undistort_frames, *movie_info):   #movie_infoはmai
                 pass
     else:
         print("エラー：正しくramp_imgsが取得できませんでした.")
-
+    """
 
     #ランプ画像を入れる２次元配列を用意
     ramp_imgs = []
     for i in range(len(undistort_frames)):
-        ramp_imgs.append([i])
+        ramp_imgs.append([])
     
     for i, frame in enumerate(undistort_frames):
-        for each in mask_info2:
-            x = int(each[5])
-            y = int(each[6])
+        for row in mask_info.itertuples():   #mask_info...[ruck_num, which_side, shoot_position, time_log, x, y]
+            x = int(row.x)
+            y = int(row.y)
             #box = frame[y-side/2:y+side/2, x-side/2:x+side/2]
             box = frame[y-tmp:y+tmp, x-tmp:x+tmp]
-            
-            # #ramp_imgを画像として一応保存　呼び出し元によって処理を分ける
-            # if inspect.stack()[1].filename == "make_mask_and_normal.py":
-            #     cv2.imwrite("mask_ramp_imgs/{}_{}_{}_{}_{}.jpg".format(each[0],each[1],each[2],each[3],each[4]), box)
-            # elif inspect.stack()[1].filename == "main.py":
-            #     cv2.imwrite("current_ramp_ims/{}_{}_{}_{}_{}.jpg".format(each[0],each[1],each[2],each[3],each[4]), box)
-                
-            
-
             ramp_imgs[i].append(box)
             
     return ramp_imgs

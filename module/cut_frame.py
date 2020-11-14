@@ -30,7 +30,6 @@ from sklearn.cluster import KMeans
 #動画からフレームを切り出す関数
 #input：動画、output：frames
 def cut_frame(cap):
-    #fps
     fps = cap.get(cv2.CAP_PROP_FPS)
     
     #「interval」秒に1フレームずつ、計「num_of_frame」枚を抜き出しリストに保存
@@ -43,11 +42,5 @@ def cut_frame(cap):
         ret, frame = cap.read()
         frames.append(frame)
         timing = timing + interval
-        
+
     return frames
-
-
-
-
-# if __name__ == "__main__":
-#     cut_frame()

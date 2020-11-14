@@ -73,26 +73,25 @@ def main():
     # print(files_list[3])
     #-----
 
-    #現在時刻取得&ファイル名フォーマット作成
+    #現在時刻取得
     now = datetime.datetime.now()
+    #resultファイル名フォーマット作成
     filename = 'result_log/result_' + now.strftime('%Y%m%d_%H%M%S') + '.csv'
 
-
     #csvファイルの中身を空にする
-    with open('current_state.csv', 'w') as f:
-        f.write('')
+    # with open('current_state.csv', 'w') as f:
+    #     f.write('')
     with open('result.csv', 'w') as f:
         f.write('')
-
 
     #当面の仕様では全動画はinputに入るので、まずは全てリスト取得
     path = "input/"
     files = os.listdir(path)
     files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
     files_list.remove('.DS_Store')
-    print(files_list)
+    print("ソート前：", files_list)
 
-    
+
     #動画ファイルのソート処理----------
     #ruckの並び順
     id_order = ["R06C08-A", "R06C08-B", "R06C08-C"]
@@ -126,22 +125,49 @@ def main():
             return 1
         return int(file1_number) - int(file2_number)
     files_list.sort(key=cmp_to_key(compare_files))
-    print(files_list)
-    #----------
+    print("ソート後：", files_list)
+    #----------動画ファイルのソート処理
 
-    
+    """
     #マスク情報の読み込み（マスクcsvの構成とか今適当なのでこの辺どうインサート、読み込みしていくかも記述していく）
     with open("mask_info.csv") as f:
         reader = csv.reader(f)
-        mask_info = [row for row in reader]
+        mask_infos = [row for row in reader]
     #正常状態情報の読み込み
     with open("normal_state.csv") as f:
         reader = csv.reader(f)
-        normal_state = [row for row in reader]
+        normal_states = [row for row in reader]
     # #csvから戻すと数値がstrになるのでintに戻す
     # for i, each in enumerate(normal_state):
     #     normal_state[i][4] = int(each[4])
+    """
 
+    #正常状態csvのDataFrameでの読み込み
+    normal_states = pd.read_csv("normal_states.csv", index_col=0)
+    # get_ramp_imgs, get_ramp_state を make_mask_and_nomaly.py と共有するために引数normal_stateの形を整える（つまりmask_infoにする）
+    mask_infos = normal_states.drop(columns=["color", "LF", "ramp_num"])
+    
+    #グローバルリスト（ここに諸情報を追加していき、最終的なアウトプットとする）
+    current_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0]], columns=[
+        "ruck_num", 
+        "which_side", 
+        "shoot_position", 
+        "time_log", 
+        "ramp_num",
+        "x", 
+        "y", 
+        "normal_color", 
+        "normal_LF", 
+        "current_color", 
+        "current_LF"
+        ])
+    """
+    current_states = normal_states
+    current_states["current_color"]
+    current_states["current_LF"]
+    current_states["result"]
+    print(current_states)
+    """
 
 
     for i, movie in enumerate(files_list):
@@ -149,29 +175,50 @@ def main():
         cap =  cv2.VideoCapture(path + movie)
 
         if cap.isOpened()==False:
-            print("[{}]：読み込めませんでした".format(movie))
+            print("[{}]：read error.".format(movie))
         else:
-            print("[{}]：読み込み成功".format(movie))
+            print("[{}]：read success.".format(movie))
 
             #動画名から各種情報を取得
             ruck_num, which_side, shoot_position, time_log = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
             movie_info = [ruck_num, which_side, shoot_position, time_log]
+            print("start_processing----------")
+            print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
+            print("--------------------------")
 
-            #モジュール利用
+            #mask_infosからこの動画での対象となるmask_infoを取得
+            mask_info = mask_infos.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
+            #mask_infosからこの動画での対象となるmask_infoを取得
+            normal_state = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
+
             frames = module.cut_frame.cut_frame(cap) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
-            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames, movie_info)
-            current_state = module.get_ramp_state.get_ramp_state(ramp_imgs, movie_info)
+            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames)
+            current_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info)
+            #print(current_state)
+
+            #カラム名の変更
+            normal_state = normal_state.rename(columns={'color': 'normal_color', 'LF': 'normal_LF'})
+            current_state = current_state.rename(columns={'color': 'current_color', 'LF': 'current_LF'})
+            #normal_state に current_state の current_color, current_LF をconcat（index）する
+            normal_state = normal_state.assign(current_color = current_state["current_color"])
+            normal_state = normal_state.assign(current_LF = current_state["current_LF"])
+
+            #ループ外の current_states に追加していく
+            current_states = pd.concat([current_states, normal_state], axis=0) 
+            #current_states = ["ruck_num", "which_side", "shoot_position", "time_log", "ramp_num", "x", "y", "normal_color", "normal_LF", "current_color", "current_LF"]
+            #print(current_states)
 
 
-            #連結画像の作成-----
+            """
+            #連結画像の作成
             ramp_imgs = np.array(ramp_imgs) #ndarray化
 
             def concat_tile(im_list_2d):
                 return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_list_2d])
             ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
             cv2.imwrite("current_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
-            #-----
+            """
 
 
 
@@ -211,6 +258,7 @@ def main():
 
 
             #比較→正常/異常判定 サーチ
+            """
             result = []
             for cur in current_state:
                 for nor in normal_state:
@@ -227,12 +275,29 @@ def main():
                     print("エラー：[{}]のランプについて正常状態が記録されていません.".format(cur))
                     result.append([cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], "?"])
 
-
             #正常/異常判定記録をcsv出力
             with open(filename, "a") as f:
                 writer = csv.writer(f)
                 writer.writerows(result)
+            """
+    #current_statesの先頭な威rないぎょうを削除し再度indexを振り直す
+    current_states = current_states.reset_index(drop = True)
+    current_states = current_states.drop(index = 0)
+    current_states = current_states.reset_index(drop = True)
 
+    #異常判定処理
+    current_states["result"] = "a"  #新しいカラム[result]を定義&文字列で初期化
+    for i, row in enumerate(current_states.itertuples()):
+        if row.normal_color == row.current_color and row.normal_LF == row.current_LF:
+            # current_states[i:i+1]["result"] = "-"  #←なぜかこの書き方だと値を更新できない、ので.iatで指定する
+            current_states.iat[i, 11] = "N"
+        else:
+            # current_states[i:i+1]["result"] = "error"
+            current_states.iat[i, 11] = "Error"
+    print(current_states)
+
+    #csv出力
+    current_states.to_csv(filename)
 
 
 if __name__ == "__main__":

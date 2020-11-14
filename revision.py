@@ -43,7 +43,7 @@ def main():
     #mask_info = pd.read_csv("mask_info.csv", index_col=None, names = ('ruck_num', 'L/R', 'shoot_position', 'time_log', 'x', 'y'))  #mask_info.csvをdf取得→mask_info
     mask_info = pd.read_csv("mask_info.csv", header=None)  #mask_info.csvをdf取得→mask_info
     mask_info = mask_info.drop(delete_index)  #mask_infoから先ほど取得したインデックスのレコードを削除
-    #mask_info = mask_info.reset_index()
+    #mask_info = mask_info.reset_index(drop=True)
     #mask_info（新）をmask_info.csvに上書き
     mask_info.to_csv('mask_info.csv')
     print(mask_info)

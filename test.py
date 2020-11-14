@@ -34,86 +34,61 @@ import module.get_ramp_imgs
 import module.get_ramp_state
 
 
-# list = ["a","b","c","d","e"]
-# print(list)
-# list[0],list[1],list[2],list[3],list[4] = list[2],list[1], list[4],list[3],list[0]
-# print(list)
 
-"""
-#動画名から各種情報を取得
-split_name = movie.replace(".mp4", "").split("_")
-ruck_num = split_name[0] #ラック番号
-which_side = split_name[1] #ラックの左右情報
-shoot_position = split_name[2] #撮影位置番号
-time_log = split_name[3] #撮影date
-movie_info = [ruck_num, which_side, shoot_position, time_log]
-"""
-"""
-class Ruck:
-    def __init__(self):
-        self.left = []
-        self.right = []
-
-rucks = {
-    "R06C08-A": Ruck(), 
-    "R06C08-B": Ruck(), 
-    "R06C08-C": Ruck()
-}
-
-for ruck_name, ruck in rucks.items():
-    ruck.left.append()
-    ruch_name 
+def main():
     
-
-    code = "{}_L=[]".format(order)
-    print(code)
-    exec(code)
-    #exec("{}_R = []".format(order))
-print(R06C08-A_L)
-
-files_list = ['R06C08-C_L_0_20200826113408.mp4', 'R06C08-B_L_1_20200826113306.mp4', 'R06C08-A_L_1_20200826113102.mp4', 'R06C08-B_L_0_20200826113204.mp4', 'R06C08-A_L_0_20200826113000.mp4']
-
-"""
-
-
-
-# for file in file_list:
-#     split_name = movie.replace(".mp4", "").split("_")
-#     ruck_num = split_name[0] #ラック番号
-#     which_side = split_name[1] #ラックの左右情報
-#     shoot_position = split_name[2] #撮影位置番号
-#     time_log = split_name[3] #撮影date
     
-#     for order in order_ruck:
-#         if ruck_num == order:
-#             if which_side == "L":
-#                 if 
-
-
-# import datetime
-# dt_now = datetime.datetime.now()
-# print(dt_now)
-# print(str(dt_now))
+    a = [[1,2,3],[4,5,6],[1,2,9],[1,2,12],[1,14,15]]
+    df = pd.DataFrame(a, columns = ["a","b","c"])
+    print(df)
+    print(df[(df["a"] == 1) & (df["b"] == 2)])
 
 
 
-color_pixels = [
-    [10, 20, 30, 1, 2],
-    [40, 50, 60, 3, 4],
-    [70, 80, 90, 5, 6],
-    [100, 110, 120, 7, 8],
-    [130, 140, 150, 9, 10]
-]
-color_pixels = np.array(color_pixels) 
-raw = color_pixels[:, 1:]
-print(raw)
+    # delete_index=[2,3]
+    # a = a.drop(index=delete_index)
+    # print(a)
+    # a = a.reset_index(drop=True)
+    # print(a)
 
-# cluster = KMeans(n_clusters = 2)
-# cluster.fit(X=raw)
-# h = cluster.cluster_centers_[:, 0]
-# print(h)
+    #a.to_csv("test.csv")
+    
+    
+    """
+    a = [[1,2,3],[4,5,6],[7,8,9]]
+    df = pd.DataFrame(a, columns = ["a","b","c"])
+    print(a)
+    df.insert(0, 'd', 'info')
+    print(df)
+    """
+
+    """
+    a = []
+    print(a)
+    b = [[1,2,3], [4,5,6]]
+    print(a+b)
+    c = [[2,3,4], [5,6,7]]
+    print(a+b+c)
+    """
+
+
+
+    """
+    x = []
+
+    a = [1]
+    x = x+a
+    x.append(1)
+    x.append(2)
+    x.append(3)
+    print(x)
+    print("aaa")
+    """
 
 
 
 
+
+if __name__ == "__main__":
+    main()
 

@@ -63,32 +63,8 @@ import inspect
 # files_list = [[],[],[],[]]
 
 
+
 def main():
-    #動画ファイル格納　なんかうまく繰り返し構文で書けなかった
-    # for path in [fujitsu_L_path,fujitsu_R_path,dell_L_path,dell_R_path]:
-    #     files = os.listdir(path)
-    #     fujitsu_L_files = [f for f in files if os.path.isfile(os.path.join(path, f))]
-    #     print(fujitsu_L_files)
-    #応急処置-----
-    # files = os.listdir(fujitsu_L_path)
-    # files_list[0] = [f for f in files if os.path.isfile(os.path.join(fujitsu_L_path, f))]
-
-    # files = os.listdir(fujitsu_R_path)
-    # files_list[1] = [f for f in files if os.path.isfile(os.path.join(fujitsu_R_path, f))]
-
-    # files = os.listdir(dell_L_path)
-    # files_list[2] = [f for f in files if os.path.isfile(os.path.join(dell_L_path, f))]
-
-    # files = os.listdir(dell_R_path)
-    # files_list[3] = [f for f in files if os.path.isfile(os.path.join(dell_R_path, f))]
-
-    # print(files_list[0])
-    # print(files_list[1])
-    # print(files_list[2])
-    # print(files_list[3])
-    #-----
-
-
     #当面の仕様では全動画はinputに入るので、まずは全てリスト取得
     path = "input/"
     files = os.listdir(path)
@@ -133,42 +109,52 @@ def main():
     print(files_list)
     #----------
 
+
     #csvファイルの中身を空にする
     with open('mask_info.csv', 'w') as f:
         f.write('')
     with open('normal_state.csv', 'w') as f:
         f.write('')
-    
 
+
+
+    #グローバルリスト
+    # mask_infos = pd.DataFrame([[0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"])
+    # print(mask_infos)
+    normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "color", "LF"])
+
+
+    #各動画に対して処理
     for i, movie in enumerate(files_list):
-        print(i, "：", movie)
         cap =  cv2.VideoCapture(path + movie)
 
         if cap.isOpened()==False:
             print("[{}]：read error.".format(movie))
         else:
-            print("[{}]：read success. processes start.".format(movie))
+            print("[{}]：read success.".format(movie))
 
             #動画名から各種情報を取得
             ruck_num, which_side, shoot_position, time_log = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
             movie_info = [ruck_num, which_side, shoot_position, time_log]
-            #print(movie_info)
+            print("start_processing----------")
+            print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
+            print("--------------------------")
 
             #make_mask-----
             frames = module.cut_frame.cut_frame(cap) #フレームを切り出す
-            #print(frames)
             undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
-            #print(undistort_frames)
             sum_img = module.sum_frames.sum_frames(undistort_frames) #集合画像
-            #print(sum_img.shape)
-            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info)  #現状csvに保存しても上書きされてしまうのでその処理を追加する、、てかjsonで保存するようにする
-            #print(mask_info)
+            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
             #-----
+
+            #mask_infos = pd.concat([mask_infos, mask_info], axis=0)  #ループ外のmask_infosに追加していく　最後にcsv出力
 
             #make_normal_state_info-----
             ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames)
-            normal_state = module.get_ramp_state.get_ramp_state(ramp_imgs, movie_info)
+            normal_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info)
             #-----
+
+            normal_states = pd.concat([normal_states, normal_state], axis=0)  #ループ外のnormal_statesに追加していく、最後にcsv出力
 
 
             # #連結画像の作成-----
@@ -182,16 +168,28 @@ def main():
 
 
             #gif画像生成-----
-            for j in range(10):
+            """
+            for j in range(len(frames)):
                 for mi, ns in zip(mask_info, normal_state):
                     #cv2.putText(undistort_frames[j], '{}:{}:{}'.format(str(ns[4]), str(ns[5]), str(ns[6])), (int(mi[5]), int(mi[6])), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1, cv2.LINE_AA)
                     cv2.putText(undistort_frames[j], '{}:{}:{}'.format(str(ns[4]), str(ns[5][0]), str(ns[6])), (int(mi[5]), int(mi[6])-10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1, cv2.LINE_AA)
-
-            undistort_frames = list(undistort_frames)
+            """
+            for j, frame in enumerate(undistort_frames):
+                for row in normal_states.itertuples():
+                    cv2.putText(
+                        img = frame, 
+                        text = '{}:{}:{}'.format(str(row.Index), str(row.color)[0], str(row.LF)), 
+                        org = (int(row.x), int(row.y-10)), 
+                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                        fontScale = 1,
+                        color = (255, 255, 255), 
+                        thickness = 1,
+                        lineType = cv2.LINE_AA
+                        )
+                    undistort_frames[j] = frame
+            undistort_frames = list(undistort_frames)  #gifにするのに標準リスト化
             clip = ImageSequenceClip(undistort_frames, fps=2)
             clip.write_gif('mask_gif/{}_{}_{}_{}.gif'.format(ruck_num, which_side, shoot_position, time_log))
-
-
 
 
             # #まずはundistort_framesをimwrite
@@ -201,9 +199,6 @@ def main():
             #         # ディレクトリが存在しない場合、ディレクトリを作成する
             #         os.makedirs(dir)
                 
-                
-
-
                 
                     #cv2.putText(img, "color",(), cv2.FONT_HERSHEY_PLAIN, 4, (255, 255, 255), 5, cv2.LINE_AA )
 
@@ -238,11 +233,22 @@ def main():
             #         writer = csv.writer(f)
             #         writer.writerows(normal_state)
             
-            
+    
+    """
     #mask_info.csvを読み込み、中身をrevision.xcelに出力する
     mask_info = pd.read_csv("normal_state.csv", names = ('ruck_num', 'L/R', 'shoot_position', 'time_log', 'index_in_ruck', 'color', 'L/F', 'delete'))  #dataframe
     #print("------", mask_info.columns)
     mask_info.to_excel("revision.xlsx", sheet_name = "change_info&delete", index=True, header=True)
+    """
+
+    #csv出力
+    #normal_statesに振られているインデックスはshoot_positionごとのものなので新たにindexを設定する. 元のindexは[ramp_num]列に.
+    normal_states = normal_states.reset_index()  #reset_index()をすると元のインデックスは[index]と言う列で残る
+    normal_states = normal_states.rename(columns={"index":"ramp_num"})
+    normal_states = normal_states.reindex(columns=["ruck_num", "which_side", "shoot_position", "time_log", "ramp_num", "x", "y", "color", "LF"])
+    normal_states = normal_states.drop(index = 0)
+    normal_states = normal_states.reset_index(drop=True)
+    normal_states.to_csv("normal_states.csv") #normal_statesのcsv出力
 
 
 
