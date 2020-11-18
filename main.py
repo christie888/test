@@ -78,11 +78,13 @@ def main():
     #resultファイル名フォーマット作成
     filename = 'result_log/result_' + now.strftime('%Y%m%d_%H%M%S') + '.csv'
 
+    """
     #csvファイルの中身を空にする
     # with open('current_state.csv', 'w') as f:
     #     f.write('')
     with open('result.csv', 'w') as f:
         f.write('')
+    """
 
     #当面の仕様では全動画はinputに入るので、まずは全てリスト取得
     path = "input/"

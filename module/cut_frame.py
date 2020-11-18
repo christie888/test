@@ -40,7 +40,14 @@ def cut_frame(cap):
     for i in range(num_of_frame):
         cap.set(cv2.CAP_PROP_POS_FRAMES, round(fps * timing))
         ret, frame = cap.read()
+
+        #リサイズ
+        height = 1200
+        width = 1600
+        frame = cv2.resize(frame , ((width, height)))
+
         frames.append(frame)
+        print(frame.shape)
         timing = timing + interval
 
     return frames

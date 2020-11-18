@@ -137,8 +137,8 @@ def get_ramp_state(ramp_imgs, mask_info):   #mask_info=["ruck_num", "which_side"
 
         #結果を mask_infoに追加していく
         if set(unique) == set(["green"]):
-            state.iat[i, 6] = "green" #7はcolor
-            state.iat[i, 7]  = "L" #8はLF
+            state.iat[i, 6] = "green" #6はcolor
+            state.iat[i, 7]  = "L" #7はLF
         elif set(unique) == set(["other"]):
             state.iat[i, 6] = "other"
             state.iat[i, 7] = "L"

@@ -43,6 +43,8 @@ import module.get_ramp_state
 
 import inspect
 
+import json
+
 
 #一つのサーバラックには片側10箇所の撮影ポイントがあるが、テスト用動画では片側5箇所となる
 #１撮影ポイントに関する情報を得るコードを書き、それをコード内で繰り返していく
@@ -71,6 +73,11 @@ def main():
     files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
     if '.DS_Store' in files_list:
         files_list.remove('.DS_Store')
+
+    #パラメータの読み込み
+    json_open = open("param.json", "r")
+    param = json.load(json_open)
+    print(param["aaa"])
 
 
     #動画ファイルのソート処理----------
@@ -109,13 +116,13 @@ def main():
     print(files_list)
     #----------
 
-
+    """
     #csvファイルの中身を空にする
     with open('mask_info.csv', 'w') as f:
         f.write('')
     with open('normal_state.csv', 'w') as f:
         f.write('')
-
+    """
 
 
     #グローバルリスト
@@ -171,23 +178,16 @@ def main():
 
 
             #gif画像生成---------------
-            """
-            for j in range(len(frames)):
-                for mi, ns in zip(mask_info, normal_state):
-                    cv2.putText(
-                        undistort_frames[j],
-                        '{}:{}:{}'.format(str(ns[4]), str(ns[5][0]), str(ns[6])), 
-                        (int(mi[5]), int(mi[6])-10), 
-                        cv2.FONT_HERSHEY_PLAIN, 
-                        1, 
-                        (255, 255, 255), 
-                        1, 
-                        cv2.LINE_AA
-                        )
-            """
-            
+            y_step=20 #高さ方向のグリッド間隔(単位はピクセル)
+            x_step=20 #幅方向のグリッド間隔(単位はピクセル)
+
             for j, frame in enumerate(undistort_frames):
+                img_y,img_x=frame.shape[:2]  #オブジェクトimgのshapeメソッドの1つ目の戻り値(画像の高さ)をimg_yに、2つ目の戻り値(画像の幅)をimg_xに
+                frame[y_step:img_y:y_step, :, :] = (0, 0, 255)  #横線を引く：y_stepからimg_yの手前までy_stepおきに横線を引く (0, 0, 255)...青
+                frame[:, x_step:img_x:x_step, :] = (0, 0, 255)  #縦線を引く：x_stepからimg_xの手前までx_stepおきに縦線を引く (0, 0, 255)
+
                 for row in normal_state.itertuples():
+                    #ランプ情報をputText
                     cv2.putText(
                         img = frame, 
                         text = '{}:{}:{}'.format(str(row.Index), str(row.color)[0], str(row.LF)), 
@@ -195,9 +195,34 @@ def main():
                         fontFace =  cv2.FONT_HERSHEY_PLAIN, 
                         fontScale = 1,
                         color = (255, 255, 255), 
-                        thickness = 1,
+                        thickness = 2,
                         lineType = cv2.LINE_AA
                         )
+                    #目盛り（縦方向）
+                    for i in range(int(1200/y_step)):
+                        cv2.putText(
+                            img = frame, 
+                            text = str(i),
+                            org = (int(0), int(y_step + y_step * i)),
+                            fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                            fontScale = 1,
+                            color = (255, 255, 255), 
+                            thickness = 1,
+                            lineType = cv2.LINE_AA
+                            )
+                    #目盛り（横方向）
+                    for i in range(int(1600/x_step)):
+                        cv2.putText(
+                            img = frame, 
+                            text = str(i),
+                            org = (int(x_step * i), int(y_step)),
+                            fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                            fontScale = 1,
+                            color = (255, 255, 255), 
+                            thickness = 1,
+                            lineType = cv2.LINE_AA
+                            )
+
                     undistort_frames[j] = frame
 
             undistort_frames = list(undistort_frames)  #gifにするのに標準リスト化

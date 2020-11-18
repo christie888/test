@@ -67,7 +67,9 @@ def get_mask_info(sum_img, movie_info):
     delete_index = []
     tmp = 50 #ramp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
     for row in stats_df.itertuples():
-        #フィルター１　フレームの縁からtmpだけ離れた範囲にあるか否か.　ramp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
+        #フィルター１　フレームの縁からtmpだけ離れた範囲にあるか否か.
+        #ramp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
+        #また撮影ポジションによる上下左右のダブり問題に関してもここの調整で対応できる.　これは重要なので後で調整方法について検討
         if (row.x < tmp or row.x >1600-tmp or row.y < tmp or row.y > 1200-tmp):
             delete_index.append(row.Index)
             continue
