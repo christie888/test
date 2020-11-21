@@ -77,12 +77,9 @@ def main():
     #パラメータの読み込み
     json_open = open("param.json", "r")
     param = json.load(json_open)
-    print(param["aaa"])
-
 
     #動画ファイルのソート処理----------
-    #ruckの並び順
-    id_order = ["R06C08-A", "R06C08-B", "R06C08-C"]
+    id_order = param["ruck_order"]  #ruckの並び順
 
     def cmp_to_key(mycmp):
         'Convert a cmp= function into a key= function'
@@ -128,7 +125,16 @@ def main():
     #グローバルリスト
     # mask_infos = pd.DataFrame([[0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"])
     # print(mask_infos)
-    normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "color", "LF"])
+    normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0]], columns=[
+        "ruck_num", 
+        "which_side", 
+        "shoot_position", 
+        "time_log", 
+        "x", 
+        "y", 
+        "color", 
+        "LF"
+        ])
 
 
     #各動画に対して処理--------------------
@@ -148,20 +154,20 @@ def main():
             print("--------------------------")
 
             #make_mask-----
-            frames = module.cut_frame.cut_frame(cap) #フレームを切り出す
+            frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
-            sum_img = module.sum_frames.sum_frames(undistort_frames) #集合画像
+            sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
             # cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
-            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
+            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
             #-----
             #make_normal_state_info-----
-            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames)
+            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames, param)
             """
             for j, row in enumerate(ramp_imgs):
                 for k, img in enumerate(row):
                     cv2.imwrite("ramp_imgs/{}_{}_{}_frame{}_ramp{}.jpg".format(ruck_num, which_side, shoot_position, j, k),img)
             """
-            normal_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info)
+            normal_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info, param)
             #-----
 
             #ループ外のnormal_statesに追加していく、最後にcsv出力
@@ -178,8 +184,8 @@ def main():
 
 
             #gif画像生成---------------
-            y_step=20 #高さ方向のグリッド間隔(単位はピクセル)
-            x_step=20 #幅方向のグリッド間隔(単位はピクセル)
+            x_step = param["gif_grid_x"] #幅方向のグリッド間隔(単位はピクセル)
+            y_step = param["gif_grid_y"] #高さ方向のグリッド間隔(単位はピクセル)
 
             for j, frame in enumerate(undistort_frames):
                 img_y,img_x=frame.shape[:2]  #オブジェクトimgのshapeメソッドの1つ目の戻り値(画像の高さ)をimg_yに、2つ目の戻り値(画像の幅)をimg_xに

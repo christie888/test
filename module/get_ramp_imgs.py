@@ -31,8 +31,8 @@ import inspect
 
 #マスク情報を使ってランプ画像を切り抜く関数
 #input:mask_info, frames　　　output:ramp_imgs
-def get_ramp_imgs(mask_info, undistort_frames):
-    side = 50  #重心を中心とする正方形の一辺（※横範囲はランプ間距離が遠い+レールがずれにくいのでそんなに範囲取らなくて良いけど、y範囲は大きめにとった長方形で切り出すのがベターかもしれない。今後検討。）
+def get_ramp_imgs(mask_info, undistort_frames, param):
+    side = param["get_ramp_imgs"]["img_side"]  #重心を中心とする正方形の一辺（※横範囲はランプ間距離が遠い+レールがずれにくいのでそんなに範囲取らなくて良いけど、y範囲は大きめにとった長方形で切り出すのがベターかもしれない。今後検討。）
     tmp = int(side/2)
 
     #　※main.py内で事前にnormal_stateを切り分けているので、呼び出し元によって分ける必要がなくなった

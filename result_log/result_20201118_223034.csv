@@ -1,0 +1,11 @@
+,ruck_num,which_side,shoot_position,time_log,ramp_num,x,y,normal_color,normal_LF,current_color,current_LF,result
+0,R06C08-A,L,0,20200826113204,0,848,446,multi_color,-,multi_color,-,N
+1,R06C08-A,L,0,20200826113204,1,901,446,multi_color,-,multi_color,-,N
+2,R06C08-A,L,0,20200826113204,2,543,465,multi_color,-,multi_color,-,N
+3,R06C08-A,R,0,20200826113000,0,722,350,multi_color,-,multi_color,-,N
+4,R06C08-A,R,0,20200826113000,1,718,406,multi_color,-,multi_color,-,N
+5,R06C08-A,R,0,20200826113000,2,915,419,multi_color,-,multi_color,-,N
+6,R06C08-A,R,0,20200826113000,3,364,452,multi_color,-,multi_color,-,N
+7,R06C08-A,R,0,20200826113000,4,260,501,multi_color,-,multi_color,-,N
+8,R06C08-A,R,0,20200826113000,5,714,514,green,L,green,L,N
+9,R06C08-A,R,0,20200826113000,6,1300,541,multi_color,-,multi_color,-,N

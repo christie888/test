@@ -33,6 +33,8 @@ import module.get_mask_info
 import module.get_ramp_imgs
 import module.get_ramp_state
 
+import json
+
 
 #動画パス
 # fujitsu_L_path = "input/fujitsu_rack/L/"
@@ -49,29 +51,6 @@ import module.get_ramp_state
 
 
 def main():
-    #動画ファイル格納　なんかうまく繰り返し構文で書けなかった
-    # for path in [fujitsu_L_path,fujitsu_R_path,dell_L_path,dell_R_path]:
-    #     files = os.listdir(path)
-    #     fujitsu_L_files = [f for f in files if os.path.isfile(os.path.join(path, f))]
-    #     print(fujitsu_L_files)
-    #応急処置-----
-    # files = os.listdir(fujitsu_L_path)
-    # files_list[0] = [f for f in files if os.path.isfile(os.path.join(fujitsu_L_path, f))]
-
-    # files = os.listdir(fujitsu_R_path)
-    # files_list[1] = [f for f in files if os.path.isfile(os.path.join(fujitsu_R_path, f))]
-
-    # files = os.listdir(dell_L_path)
-    # files_list[2] = [f for f in files if os.path.isfile(os.path.join(dell_L_path, f))]
-
-    # files = os.listdir(dell_R_path)
-    # files_list[3] = [f for f in files if os.path.isfile(os.path.join(dell_R_path, f))]
-
-    # print(files_list[0])
-    # print(files_list[1])
-    # print(files_list[2])
-    # print(files_list[3])
-    #-----
 
     #現在時刻取得
     now = datetime.datetime.now()
@@ -93,10 +72,13 @@ def main():
     files_list.remove('.DS_Store')
     print("ソート前：", files_list)
 
+    #パラメータの読み込み
+    json_open = open("param.json", "r")
+    param = json.load(json_open)
 
     #動画ファイルのソート処理----------
     #ruckの並び順
-    id_order = ["R06C08-A", "R06C08-B", "R06C08-C"]
+    id_order = param["ruck_order"]
 
     def cmp_to_key(mycmp):
         'Convert a cmp= function into a key= function'
@@ -185,10 +167,10 @@ def main():
             #mask_infosからこの動画での対象となるmask_infoを取得
             normal_state = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
 
-            frames = module.cut_frame.cut_frame(cap) #フレームを切り出す
+            frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
-            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames)
-            current_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info)
+            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames, param)
+            current_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info, param)
             #print(current_state)
 
             #カラム名の変更

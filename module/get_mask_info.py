@@ -31,7 +31,7 @@ from sklearn.cluster import KMeans
 
 #sum_imgをフィルタリングしてマスク情報を取得する関数
 #input:sum_img、output:mask_info
-def get_mask_info(sum_img, movie_info):
+def get_mask_info(sum_img, movie_info, param):
     #オブジェクト化-----
     nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(sum_img)
     #nlabels...ラベルの数（黒い領域も含む）
@@ -65,19 +65,19 @@ def get_mask_info(sum_img, movie_info):
 
     #フィルター（入れないかもなので無くても問題なく動くように）
     delete_index = []
-    tmp = 50 #ramp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
+    thick = param["get_mask_info"]["remove_frame_thick"] #ramp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
     for row in stats_df.itertuples():
         #フィルター１　フレームの縁からtmpだけ離れた範囲にあるか否か.
         #ramp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
         #また撮影ポジションによる上下左右のダブり問題に関してもここの調整で対応できる.　これは重要なので後で調整方法について検討
-        if (row.x < tmp or row.x >1600-tmp or row.y < tmp or row.y > 1200-tmp):
+        if (row.x < thick or row.x >param["frame_w"]-thick or row.y < thick or row.y > param["frame_h"]-thick):
             delete_index.append(row.Index)
             continue
         #フィルター２　ピクセル数、幅、高さ
         if (
-            row.pixel <= 100 or row.pixel >= 400
-            or row.w <= 15 or row.w >= 40
-            or row.h <= 10 or row.h >= 40
+            row.pixel <= param["get_mask_info"]["filter_n_pixels"][0] or row.pixel >= param["get_mask_info"]["filter_n_pixels"][1]
+            or row.w <= param["get_mask_info"]["filter_w"][0] or row.w >= param["get_mask_info"]["filter_w"][1]
+            or row.h <= param["get_mask_info"]["filter_h"][0] or row.h >= param["get_mask_info"]["filter_h"][1]
             ):
             delete_index.append(row.Index)
     #print("delete_index", delete_index)

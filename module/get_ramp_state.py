@@ -44,7 +44,7 @@ import smtplib
 #ランプ画像からその状態情報（色、点滅情報）を抽出する関数、また結果はcsvで出力
 #関数内には色を判定する機能も書き込む
 #input:ramp_imgs、output:ramp_states（ランプ毎の色、点滅状態情報）
-def get_ramp_state(ramp_imgs, mask_info):   #mask_info=["ruck_num", "which_side", "shoot_position", "time_log", "rump_num", "x", "y"]
+def get_ramp_state(ramp_imgs, mask_info, param):   #mask_info=["ruck_num", "which_side", "shoot_position", "time_log", "rump_num", "x", "y"]
     #フレーム毎にリストを用意し、ランプ情報を入れ込む２次元リスト
     each_rampimg_colors = []
     for i in range(len(ramp_imgs)):  #len(ramp_imgs)=10
@@ -60,7 +60,7 @@ def get_ramp_state(ramp_imgs, mask_info):   #mask_info=["ruck_num", "which_side"
             ramp_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)  #グレースケール
             ret, thresh = cv2.threshold(
                 ramp_gray, 
-                120, #閾値
+                param["get_ramp_states"]["thresh_level2"], #閾値
                 255, 
                 cv2.THRESH_BINARY
                 )
@@ -76,18 +76,29 @@ def get_ramp_state(ramp_imgs, mask_info):   #mask_info=["ruck_num", "which_side"
                         pass
             color_pixels = np.array(color_pixels) #平均を計算しやすくするためにndarray化
             
-            if len(color_pixels) >= 10:   #マスクでとってきたピクセル数が一定数以上あれば処理を行うフィルター（少なすぎるのは消滅しかけと判断）
+            if len(color_pixels) >= param["get_ramp_states"]["min_n_pixels"]:   #マスクでとってきたピクセル数が一定数以上あれば処理を行うフィルター（少なすぎるのは消滅しかけと判断）
                 #h_mean, s_mean, v_mean = np.mean(color_pixels, axis=0)  #H,S,Vそれぞれの平均. 輝度で敷居をかけたもののみ見ているので各範囲は狭くなるはず. しかしまだ広いので輝度の高い上位数ピクセルでとる、あるいは閾値をもっと高くして明るいところだけ取れた方が良いかも
                 #kmeasnsでクラスターに分ける------
-                cluster = KMeans(n_clusters = 5)
+                n_clusters = param["get_ramp_states"]["n_clusters"]
+                cluster = KMeans(n_clusters)
                 cluster.fit(X=color_pixels)
                 sorted_centers = cluster.cluster_centers_[cluster.cluster_centers_[:,0].argsort(), :]   #hの値で昇順にソート
-                selected_h_mean = np.mean(sorted_centers[1:4, 0:1])  #各クラスター中心h値（5つ）の中から最も高いもの、低いものを除いたものからさらに平均を取ったもの
+                c = int(n_clusters/2)
+                selected_h_mean = np.mean(sorted_centers[c-1:c+2, 0:1])  #各クラスター中心h値の中から高いもの、低いものを除いたものからさらに平均を取る
                 #-------------------------
                 #色判定--------------------
-                if selected_h_mean >= 40 and selected_h_mean <= 80:
+                if selected_h_mean >= param["get_ramp_states"]["green_h"][0] and selected_h_mean <= param["get_ramp_states"]["green_h"][1]:
                     each_rampimg_colors[i].append("green")
                     print("frame({}/{})__ramp({}/{})__h={}　： green".format(i+1, len(ramp_imgs), j+1, len(row), selected_h_mean))
+                elif selected_h_mean >= param["get_ramp_states"]["red_h"][0] and selected_h_mean <= param["get_ramp_states"]["red_h"][1]:
+                    each_rampimg_colors[i].append("red")
+                    print("frame({}/{})__ramp({}/{})__h={}　： green".format(i+1, len(ramp_imgs), j+1, len(row), selected_h_mean))
+                elif selected_h_mean >= param["get_ramp_states"]["blue_h"][0] and selected_h_mean <= param["get_ramp_states"]["blue_h"][1]:
+                    each_rampimg_colors[i].append("blue")
+                    print("frame({}/{})__ramp({}/{})__h={}　： green".format(i+1, len(ramp_imgs), j+1, len(row), selected_h_mean))
+                elif selected_h_mean >= param["get_ramp_states"]["yellow_h"][0] and selected_h_mean <= param["get_ramp_states"]["yellow_h"][1]:
+                    each_rampimg_colors[i].append("yellow")
+                    print("frame({}/{})__ramp({}/{})__h={}　： yellow".format(i+1, len(ramp_imgs), j+1, len(row), selected_h_mean))
                 else:
                     each_rampimg_colors[i].append("otehr")
                     print("frame({}/{})__ramp({}/{})__h={}　： other".format(i+1, len(ramp_imgs), j+1, len(row), selected_h_mean))
