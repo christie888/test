@@ -147,9 +147,9 @@ def main():
                 ref_which_side = which_side
                 ref_shoot_position = shoot_position
         
-    new_normal_states = new_normal_states.reset_index()
+    new_normal_states = new_normal_states.reset_index(drop = True)
     new_normal_states = new_normal_states.drop(index = 0)
-    new_normal_states = new_normal_states.reset_index()
+    new_normal_states = new_normal_states.reset_index(drop = True)
 
     # インデックスを振り直す
     #new_normal_states = new_normal_states.reset_index(drop = True)

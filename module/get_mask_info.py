@@ -50,9 +50,7 @@ def get_mask_info(sum_img, movie_info, param):
 
     #statsをdf化
     stats_df = pd.DataFrame(stats, columns=["x", "y", "w", "h", "pixel"])
-    print("--------------------------------------")
-    print(stats_df)
-    print("--------------------------------------")
+    
     """
     #フィルター（オブジェクトのピクセル数、オブジェクトサイズ）
     filtered_stats = []

@@ -259,6 +259,8 @@ def main():
 
     #異常判定処理
     current_states["result"] = "a"  #新しいカラム[result]を定義&文字列で初期化
+    print(current_states)
+    print(current_states.iat[i, 11])
     for i, row in enumerate(current_states.itertuples()):
         if row.normal_color == row.current_color and row.normal_LF == row.current_LF:
             # current_states[i:i+1]["result"] = "-"  #←なぜかこの書き方だと値を更新できない、ので.iatで指定する

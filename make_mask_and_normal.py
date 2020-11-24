@@ -157,7 +157,7 @@ def main():
             frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
             sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
-            # cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
+            cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
             mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
             #-----
             #make_normal_state_info-----
@@ -192,6 +192,16 @@ def main():
                 frame[y_step:img_y:y_step, :, :] = (0, 0, 255)  #横線を引く：y_stepからimg_yの手前までy_stepおきに横線を引く (0, 0, 255)...青
                 frame[:, x_step:img_x:x_step, :] = (0, 0, 255)  #縦線を引く：x_stepからimg_xの手前までx_stepおきに縦線を引く (0, 0, 255)
 
+                x1 = param["get_mask_info"]["remove_frame_thick"]
+                x2 = param["frame_w"] - param["get_mask_info"]["remove_frame_thick"]
+                y1 = param["get_mask_info"]["remove_frame_thick"]
+                y2 = param["frame_h"] - param["get_mask_info"]["remove_frame_thick"]
+                lineThickness = 2
+                cv2.line(frame, (x1, y1), (x1, y2), (0,255,0), lineThickness)
+                cv2.line(frame, (x2, y1), (x2, y2), (0,255,0), lineThickness)
+                cv2.line(frame, (x1, y1), (x2, y1), (0,255,0), lineThickness)
+                cv2.line(frame, (x1, y2), (x2, y2), (0,255,0), lineThickness)
+
                 for row in normal_state.itertuples():
                     #ランプ情報をputText
                     cv2.putText(
@@ -204,30 +214,30 @@ def main():
                         thickness = 2,
                         lineType = cv2.LINE_AA
                         )
-                    #目盛り（縦方向）
-                    for i in range(int(1200/y_step)):
-                        cv2.putText(
-                            img = frame, 
-                            text = str(i),
-                            org = (int(0), int(y_step + y_step * i)),
-                            fontFace =  cv2.FONT_HERSHEY_PLAIN, 
-                            fontScale = 1,
-                            color = (255, 255, 255), 
-                            thickness = 1,
-                            lineType = cv2.LINE_AA
-                            )
-                    #目盛り（横方向）
-                    for i in range(int(1600/x_step)):
-                        cv2.putText(
-                            img = frame, 
-                            text = str(i),
-                            org = (int(x_step * i), int(y_step)),
-                            fontFace =  cv2.FONT_HERSHEY_PLAIN, 
-                            fontScale = 1,
-                            color = (255, 255, 255), 
-                            thickness = 1,
-                            lineType = cv2.LINE_AA
-                            )
+                #目盛り（縦方向）
+                for i in range(int(1200/y_step)):
+                    cv2.putText(
+                        img = frame, 
+                        text = str(i),
+                        org = (int(0), int(y_step + y_step * i)),
+                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                        fontScale = 1,
+                        color = (255, 255, 255), 
+                        thickness = 1,
+                        lineType = cv2.LINE_AA
+                        )
+                #目盛り（横方向）
+                for i in range(int(1600/x_step)):
+                    cv2.putText(
+                        img = frame, 
+                        text = str(i),
+                        org = (int(x_step * i), int(y_step)),
+                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                        fontScale = 1,
+                        color = (255, 255, 255), 
+                        thickness = 1,
+                        lineType = cv2.LINE_AA
+                        )
 
                     undistort_frames[j] = frame
 

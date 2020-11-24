@@ -6,20 +6,20 @@
     "gif_grid_y":20,
 
     "cut_frame":{
-        "start_timing":3,
-        "interval":0.5,
+        "start_timing":2,
+        "interval":0.3,
         "n_frames":10
     },
     
     "sum_frames":{
-        "thresh_level1":120,
-        "kernel_size":15
+        "thresh_level1":150,
+        "kernel_size":9
     },
     
     "get_mask_info":{
-        "remove_frame_thick":50,
+        "remove_frame_thick":100,
         "filter_n_pixels":[100, 400],
-        "filter_w": [15, 40],
+        "filter_w": [10, 40],
         "filter_h":[10, 40]
     },
     
@@ -29,12 +29,12 @@
     
     "get_ramp_states":{
         "thresh_level2":120,
-        "min_n_pixels":10,
+        "min_n_pixels": 10,
         "n_clusters":5,
         "center_h_slice":[],
-        "green_h":[40, 80],
-        "red_h":[80, 120],
-        "blue_h":[12,160],
-        "yellow_h":[160,180]
+        "red_h":[0, 10],
+        "yellow_h":[25,35],
+        "green_h":[30, 60],
+        "blue_h":[100,130]
     }
 }
