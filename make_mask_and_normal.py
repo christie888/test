@@ -14,7 +14,7 @@ from tkinter import messagebox
 import sklearn 
 from sklearn.cluster import KMeans 
 
-import PIL   #PILのインストールはできないのに、その後継者のpillowをインストールするとimportできるようになる不思議設定
+import PIL   #PILのインストールはできない. その後継のpillowをインストールするとimportできるようになる
 from PIL import Image
 from moviepy.editor import ImageSequenceClip
 
@@ -68,7 +68,7 @@ import json
 
 def main():
     #当面の仕様では全動画はinputに入るので、まずは全てリスト取得
-    path = "input/"
+    path = "pre_input/"
     files = os.listdir(path)
     files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
     if '.DS_Store' in files_list:
@@ -100,8 +100,8 @@ def main():
                 return mycmp(self.obj, other.obj) != 0
         return K
     def compare_files(file1, file2):
-        file1_id, file1_lr, file1_number, _ = file1.split("_")
-        file2_id, file2_lr, file2_number, _ = file2.split("_")
+        file1_id, file1_lr, file1_number, _, _ = file1.split("_")
+        file2_id, file2_lr, file2_number, _, _ = file2.split("_")
         if file1_id != file2_id:
             return id_order.index(file1_id) - id_order.index(file2_id)
         if file1_lr != file2_lr:
@@ -147,15 +147,15 @@ def main():
             print("[{}]：read success.".format(movie))
 
             #動画名から各種情報を取得
-            ruck_num, which_side, shoot_position, time_log = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
-            movie_info = [ruck_num, which_side, shoot_position, time_log]
+            ruck_num, which_side, shoot_position, time_log, cam_num = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
+            movie_info = [ruck_num, which_side, shoot_position, time_log, cam_num]
             print("start_processing----------")
             print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
             print("--------------------------")
 
             #make_mask-----
             frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
-            undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
+            undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
             sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
             cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
             mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
@@ -188,20 +188,23 @@ def main():
             y_step = param["gif_grid_y"] #高さ方向のグリッド間隔(単位はピクセル)
 
             for j, frame in enumerate(undistort_frames):
-                img_y,img_x=frame.shape[:2]  #オブジェクトimgのshapeメソッドの1つ目の戻り値(画像の高さ)をimg_yに、2つ目の戻り値(画像の幅)をimg_xに
-                frame[y_step:img_y:y_step, :, :] = (0, 0, 255)  #横線を引く：y_stepからimg_yの手前までy_stepおきに横線を引く (0, 0, 255)...青
-                frame[:, x_step:img_x:x_step, :] = (0, 0, 255)  #縦線を引く：x_stepからimg_xの手前までx_stepおきに縦線を引く (0, 0, 255)
-
-                x1 = param["get_mask_info"]["remove_frame_thick"]
-                x2 = param["frame_w"] - param["get_mask_info"]["remove_frame_thick"]
-                y1 = param["get_mask_info"]["remove_frame_thick"]
-                y2 = param["frame_h"] - param["get_mask_info"]["remove_frame_thick"]
-                lineThickness = 2
-                cv2.line(frame, (x1, y1), (x1, y2), (0,255,0), lineThickness)
-                cv2.line(frame, (x2, y1), (x2, y2), (0,255,0), lineThickness)
-                cv2.line(frame, (x1, y1), (x2, y1), (0,255,0), lineThickness)
-                cv2.line(frame, (x1, y2), (x2, y2), (0,255,0), lineThickness)
-
+                img_y,img_x = frame.shape[:2]  #オブジェクトimgのshapeメソッドの1つ目の戻り値(画像の高さ)をimg_yに、2つ目の戻り値(画像の幅)をimg_xに
+                frame[y_step:img_y:y_step, :, :] = (0, 0, 255)  #横線を引く... y_stepからimg_yの手前までy_stepおきに横線を引く
+                frame[:, x_step:img_x:x_step, :] = (0, 0, 255)  #縦線を引く... x_stepからimg_xの手前までx_stepおきに縦線を引く
+                # 見やすくするため5本に一本色を変える
+                frame[y_step:img_y:y_step*5, :, :] = (255, 0, 0)
+                frame[:, x_step:img_x:x_step*5, :] = (255, 0, 0)
+                
+                # 認識外の範囲を視覚化
+                remove_frame_thick = param["get_mask_info"]["remove_frame_thick"]
+                x1 = remove_frame_thick
+                x2 = param["frame_w"] - remove_frame_thick
+                y1 = remove_frame_thick
+                y2 = param["frame_h"] - remove_frame_thick
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=2)
+                
+                
+                img_side = param["get_ramp_imgs"]["img_side"]
                 for row in normal_state.itertuples():
                     #ランプ情報をputText
                     cv2.putText(
@@ -214,6 +217,13 @@ def main():
                         thickness = 2,
                         lineType = cv2.LINE_AA
                         )
+                    #ランプ毎にカバーしているマスク範囲をフレームで視覚化
+                    x1 = int(row.x - (img_side/2))
+                    x2 = int(row.x + (img_side/2))
+                    y1 = int(row.y - (img_side/2))
+                    y2 = int(row.y + (img_side/2))
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=1)
+
                 #目盛り（縦方向）
                 for i in range(int(1200/y_step)):
                     cv2.putText(

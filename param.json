@@ -1,7 +1,7 @@
 {
     "frame_h":1200,
     "frame_w":1600,
-    "ruck_order":["R06C08-A", "R06C08-B", "R06C08-C"],
+    "ruck_order":["output", "R06C08-A", "R06C08-B", "R06C08-C"],
     "gif_grid_x":20,
     "gif_grid_y":20,
 
@@ -18,13 +18,13 @@
     
     "get_mask_info":{
         "remove_frame_thick":100,
-        "filter_n_pixels":[100, 400],
-        "filter_w": [10, 40],
-        "filter_h":[10, 40]
+        "filter_n_pixels":[50, 600],
+        "filter_w": [10, 50],
+        "filter_h":[10, 50]
     },
     
     "get_ramp_imgs":{
-        "img_side":50
+        "img_side":70
     },
     
     "get_ramp_states":{

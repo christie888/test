@@ -28,10 +28,11 @@ from sklearn.cluster import KMeans
 
 #framesに補正をかける関数
 #input:frames、output:undistort_frames
-def undistort_frames(frames):
+def undistort_frames(frames, movie_info):
     #補正用パラメータ取得
+    cam_num = movie_info[4]
     camera_mat, dist_coef_L = [], []
-    param_path = './param/' + '8' + '/'  #ひとまず8番カメラのみに対応しているが、最終的には何番のカメラで撮影したのか特定し自動で割り振らなければいけない
+    param_path = './param/{}/'.format(cam_num)  #ひとまず8番カメラのみに対応しているが、最終的には何番のカメラで撮影したのか特定し自動で割り振らなければいけない
     camera_mat = np.loadtxt(param_path + 'K.csv', delimiter=',')
     dist_coef = np.loadtxt(param_path + 'd.csv', delimiter=',')
     #print("K = \n", camera_mat)

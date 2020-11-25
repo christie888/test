@@ -13,8 +13,10 @@ from tkinter import messagebox
 
 import sklearn 
 from sklearn.cluster import KMeans 
-import PIL   #PILのインストールはできないのに、その後継者のpillowをインストールするとimportできるようになる不思議設定
+import PIL   #PILのインストールはできない. その後継のpillowをインストールするとimportできるようになる
 from PIL import Image
+from moviepy.editor import ImageSequenceClip
+
 from IPython.display import display
 
 import pandas as pd
@@ -99,8 +101,8 @@ def main():
                 return mycmp(self.obj, other.obj) != 0
         return K
     def compare_files(file1, file2):
-        file1_id, file1_lr, file1_number, _ = file1.split("_")
-        file2_id, file2_lr, file2_number, _ = file2.split("_")
+        file1_id, file1_lr, file1_number, _, _ = file1.split("_")
+        file2_id, file2_lr, file2_number, _, _ = file2.split("_")
         if file1_id != file2_id:
             return id_order.index(file1_id) - id_order.index(file2_id)
         if file1_lr != file2_lr:
@@ -156,8 +158,8 @@ def main():
             print("[{}]：read success.".format(movie))
 
             #動画名から各種情報を取得
-            ruck_num, which_side, shoot_position, time_log = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
-            movie_info = [ruck_num, which_side, shoot_position, time_log]
+            ruck_num, which_side, shoot_position, time_log, cam_num = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
+            movie_info = [ruck_num, which_side, shoot_position, time_log, cam_num]
             print("start_processing----------")
             print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
             print("--------------------------")
@@ -168,7 +170,7 @@ def main():
             normal_state = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
 
             frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
-            undistort_frames = module.undistort_frames.undistort_frames(frames) #補正
+            undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
             ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames, param)
             current_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info, param)
             #print(current_state)
@@ -185,77 +187,85 @@ def main():
             #current_states = ["ruck_num", "which_side", "shoot_position", "time_log", "ramp_num", "x", "y", "normal_color", "normal_LF", "current_color", "current_LF"]
             #print(current_states)
 
+            
+            #gif画像生成---------------
+            x_step = param["gif_grid_x"] #幅方向のグリッド間隔(単位はピクセル)
+            y_step = param["gif_grid_y"] #高さ方向のグリッド間隔(単位はピクセル)
 
-            """
-            #連結画像の作成
-            ramp_imgs = np.array(ramp_imgs) #ndarray化
+            for j, frame in enumerate(undistort_frames):
+                img_y,img_x = frame.shape[:2]  #オブジェクトimgのshapeメソッドの1つ目の戻り値(画像の高さ)をimg_yに、2つ目の戻り値(画像の幅)をimg_xに
+                frame[y_step:img_y:y_step, :, :] = (0, 0, 255)  #横線を引く... y_stepからimg_yの手前までy_stepおきに横線を引く (0, 0, 255)...青
+                frame[:, x_step:img_x:x_step, :] = (0, 0, 255)  #縦線を引く... x_stepからimg_xの手前までx_stepおきに縦線を引く (0, 0, 255)
+                # 見やすくするため5本に一本色を変える
+                frame[y_step:img_y:y_step*5, :, :] = (255, 0, 0)
+                frame[:, x_step:img_x:x_step*5, :] = (255, 0, 0)
 
-            def concat_tile(im_list_2d):
-                return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_list_2d])
-            ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
-            cv2.imwrite("current_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
-            """
+                # 認識外の範囲を視覚化
+                remove_frame_thick = param["get_mask_info"]["remove_frame_thick"]
+                x1 = remove_frame_thick
+                x2 = param["frame_w"] - remove_frame_thick
+                y1 = remove_frame_thick
+                y2 = param["frame_h"] - remove_frame_thick
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=2)
 
-            # #各種情報（撮影日時、ラック番号、L/R、撮影ポイント）をcerrent_stateリストにインサート
-            # for j in range(len(current_state)):
-            #     current_state[j] = np.insert(current_state[j], 0, time_log)
-            #     current_state[j] = np.insert(current_state[j], 1, ruck_num)
-            #     current_state[j] = np.insert(current_state[j], 2, which_side)
-            #     current_state[j] = np.insert(current_state[j], 3, shoot_position)
-            #     #print(current_state[j])
+                img_side = param["get_ramp_imgs"]["img_side"]
+                for row in normal_state.itertuples():
+                    #ランプ情報をputText
+                    cv2.putText(
+                        img = frame, 
+                        text = '{}:{}:{}'.format(str(row.Index), str(row.current_color)[0], str(row.current_LF)), 
+                        org = (int(row.x), int(row.y)), 
+                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                        fontScale = 1,
+                        color = (255, 255, 255), 
+                        thickness = 2,
+                        lineType = cv2.LINE_AA
+                        )
+                    #ランプ毎にカバーしているマスク範囲をフレームで視覚化
+                    x1 = int(row.x - (img_side/2))
+                    x2 = int(row.x + (img_side/2))
+                    y1 = int(row.y - (img_side/2))
+                    y2 = int(row.y + (img_side/2))
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=1)
+                    
+                #目盛り（縦方向）
+                for i in range(int(1200/y_step)):
+                    cv2.putText(
+                        img = frame, 
+                        text = str(i),
+                        org = (int(0), int(y_step + y_step * i)),
+                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                        fontScale = 1,
+                        color = (255, 255, 255), 
+                        thickness = 1,
+                        lineType = cv2.LINE_AA
+                        )
+                #目盛り（横方向）
+                for i in range(int(1600/x_step)):
+                    cv2.putText(
+                        img = frame, 
+                        text = str(i),
+                        org = (int(x_step * i), int(y_step)),
+                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                        fontScale = 1,
+                        color = (255, 255, 255), 
+                        thickness = 1,
+                        lineType = cv2.LINE_AA
+                        )
 
-            # #csvのクリアと追記、うまくできないから応急処置
-            # if i == 0:
-            #     #正常状態記録をcsv出力
-            #     with open("current_state.csv", "w") as f:
-            #         writer = csv.writer(f)
-            #         writer.writerows(current_state)
-            # else:
-            #     #正常状態記録をcsv出力
-            #     with open("current_state.csv", "a") as f:
-            #         writer = csv.writer(f)
-            #         writer.writerows(current_state)
+                    undistort_frames[j] = frame
+
+            undistort_frames = list(undistort_frames)  #gifにするのに標準リスト化
+            clip = ImageSequenceClip(undistort_frames, fps=2)
+            clip.write_gif('mask_gif_main/{}_{}_{}_{}.gif'.format(ruck_num, which_side, shoot_position, time_log))
+            #---------------gif画像生成
             
 
-            # #比較→正常/異常判定
-            # #currentとnormalをソートして上から順に照らし合わせる or currentの[0]-[4]に該当するnormalをサーチしてきて比較する
-            # result = []
-            # for k, (cur, nor) in enumerate(zip(current_state, normal_state)):
-            #     if str(cur[5])==str(nor[5]) and str(cur[6])==str(nor[6]):
-            #         result.append([cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6],  True])
-            #         #print(k, "：", cur, "/", nor, True)
-            #     else:
-            #         result.append([cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], False])
-            #         #print(k, "：", cur, "/", nor, False)
-
-
-            #比較→正常/異常判定 サーチ
-            """
-            result = []
-            for cur in current_state:
-                for nor in normal_state:
-                    if str(cur[0])==str(nor[0]) and str(cur[1])==str(nor[1]) and str(cur[2])==str(nor[2]) and str(cur[4])==str(nor[4]):
-                        if str(cur[5])==str(nor[5]) and str(cur[6])==str(nor[6]):
-                            result.append([cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], True])
-                            break
-                        else:
-                            result.append([cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], False])
-                            break
-                    else:
-                        pass
-                else:
-                    print("エラー：[{}]のランプについて正常状態が記録されていません.".format(cur))
-                    result.append([cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], "?"])
-
-            #正常/異常判定記録をcsv出力
-            with open(filename, "a") as f:
-                writer = csv.writer(f)
-                writer.writerows(result)
-            """
     #current_statesの先頭の不要な行を削除し、再度indexを振り直す
     current_states = current_states.reset_index(drop = True)
     current_states = current_states.drop(index = 0)
     current_states = current_states.reset_index(drop = True)
+
 
     #異常判定処理
     current_states["result"] = "a"  #新しいカラム[result]を定義&文字列で初期化
