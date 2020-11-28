@@ -38,8 +38,8 @@ import module.undistort_frames
 import module.sum_frames
 import module.get_mask_info
 
-import module.get_ramp_imgs
-import module.get_ramp_state
+import module.get_lamp_imgs
+import module.get_lamp_state
 
 import inspect
 
@@ -158,28 +158,29 @@ def main():
             undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
             sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
             cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
-            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
+            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num"]
+            print(mask_info)
             #-----
             #make_normal_state_info-----
-            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames, param)
+            lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)
             """
-            for j, row in enumerate(ramp_imgs):
+            for j, row in enumerate(lamp_imgs):
                 for k, img in enumerate(row):
-                    cv2.imwrite("ramp_imgs/{}_{}_{}_frame{}_ramp{}.jpg".format(ruck_num, which_side, shoot_position, j, k),img)
+                    cv2.imwrite("lamp_imgs/{}_{}_{}_frame{}_lamp{}.jpg".format(ruck_num, which_side, shoot_position, j, k),img)
             """
-            normal_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info, param)
+            normal_state = module.get_lamp_state.get_lamp_state(lamp_imgs, mask_info, param)
             #-----
 
             #ループ外のnormal_statesに追加していく、最後にcsv出力
             normal_states = pd.concat([normal_states, normal_state], axis=0)  
 
             # #連結画像の作成-----
-            # ramp_imgs = np.array(ramp_imgs) #ndarray化
+            # lamp_imgs = np.array(lamp_imgs) #ndarray化
 
             # def concat_tile(im_list_2d):
             #     return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_list_2d])
-            # ramp_img_tile = concat_tile(ramp_imgs[:, 1:])  #インデックスを除いてから連結
-            # cv2.imwrite("mask_ramp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), ramp_img_tile)
+            # lamp_img_tile = concat_tile(lamp_imgs[:, 1:])  #インデックスを除いてから連結
+            # cv2.imwrite("mask_lamp_tile/{}_{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position, time_log), lamp_img_tile)
             # #-----
 
 
@@ -204,12 +205,12 @@ def main():
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=2)
                 
                 
-                img_side = param["get_ramp_imgs"]["img_side"]
+                img_side = param["get_lamp_imgs"]["img_side"]
                 for row in normal_state.itertuples():
                     #ランプ情報をputText
                     cv2.putText(
                         img = frame, 
-                        text = '{}:{}:{}'.format(str(row.Index), str(row.color)[0], str(row.LF)), 
+                        text = '{}:{}:{}'.format(str(row.lamp_num), str(row.color)[0], str(row.LF)), 
                         org = (int(row.x), int(row.y)), 
                         fontFace =  cv2.FONT_HERSHEY_PLAIN, 
                         fontScale = 1,
@@ -278,21 +279,14 @@ def main():
             #         writer = csv.writer(f)
             #         writer.writerows(normal_state)
             
-    
-    """
-    #mask_info.csvを読み込み、中身をrevision.xcelに出力する
-    mask_info = pd.read_csv("normal_state.csv", names = ('ruck_num', 'L/R', 'shoot_position', 'time_log', 'index_in_ruck', 'color', 'L/F', 'delete'))  #dataframe
-    #print("------", mask_info.columns)
-    mask_info.to_excel("revision.xlsx", sheet_name = "change_info&delete", index=True, header=True)
-    """
+
 
     #csv出力
-    #normal_statesに振られているインデックスはshoot_positionごとのものなので新たにindexを設定する. 元のindexは[ramp_num]列に.
-    normal_states = normal_states.reset_index()  #reset_index()をすると元のインデックスは[index]と言う列で残る
-    normal_states = normal_states.rename(columns={"index":"ramp_num"})
-    normal_states = normal_states.reindex(columns=["ruck_num", "which_side", "shoot_position", "time_log", "ramp_num", "x", "y", "color", "LF"])
+    normal_states = normal_states.reindex(columns=["ruck_num", "which_side", "shoot_position", "time_log", "group_num", "lamp_num", "x", "y", "color", "LF"])
+    normal_states = normal_states.reset_index(drop=True)  #reset_index()をすると元のインデックスは[index]と言う列で残る
     normal_states = normal_states.drop(index = 0)
     normal_states = normal_states.reset_index(drop=True)
+    print(normal_states)
     normal_states.to_csv("normal_states.csv") #normal_statesのcsv出力
 
 

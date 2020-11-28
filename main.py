@@ -32,8 +32,8 @@ import module.undistort_frames
 import module.sum_frames
 import module.get_mask_info
 
-import module.get_ramp_imgs
-import module.get_ramp_state
+import module.get_lamp_imgs
+import module.get_lamp_state
 
 import json
 
@@ -130,8 +130,8 @@ def main():
 
     #正常状態csvのDataFrameでの読み込み
     normal_states = pd.read_csv("normal_states.csv", index_col=0)
-    # get_ramp_imgs, get_ramp_state を make_mask_and_nomaly.py と共有するために引数normal_stateの形を整える（つまりmask_infoにする）
-    mask_infos = normal_states.drop(columns=["color", "LF", "ramp_num"])
+    # get_lamp_imgs, get_lamp_state を make_mask_and_nomaly.py と共有するために引数normal_stateの形を整える（つまりmask_infoにする）
+    mask_infos = normal_states.drop(columns=["color", "LF", "lamp_num"])
     
     #グローバルリスト（ここに諸情報を追加していき、最終的なアウトプットとする）
     current_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0]], columns=[
@@ -139,7 +139,7 @@ def main():
         "which_side", 
         "shoot_position", 
         "time_log", 
-        "ramp_num",
+        "lamp_num",
         "x", 
         "y", 
         "normal_color", 
@@ -171,8 +171,8 @@ def main():
 
             frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
-            ramp_imgs = module.get_ramp_imgs.get_ramp_imgs(mask_info, undistort_frames, param)
-            current_state = module.get_ramp_state.get_ramp_state(ramp_imgs, mask_info, param)
+            lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)
+            current_state = module.get_lamp_state.get_lamp_state(lamp_imgs, mask_info, param)
             #print(current_state)
 
             #カラム名の変更
@@ -184,7 +184,7 @@ def main():
 
             #ループ外の current_states に追加していく
             current_states = pd.concat([current_states, normal_state], axis=0) 
-            #current_states = ["ruck_num", "which_side", "shoot_position", "time_log", "ramp_num", "x", "y", "normal_color", "normal_LF", "current_color", "current_LF"]
+            #current_states = ["ruck_num", "which_side", "shoot_position", "time_log", "lamp_num", "x", "y", "normal_color", "normal_LF", "current_color", "current_LF"]
             #print(current_states)
 
             
@@ -208,7 +208,7 @@ def main():
                 y2 = param["frame_h"] - remove_frame_thick
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=2)
 
-                img_side = param["get_ramp_imgs"]["img_side"]
+                img_side = param["get_lamp_imgs"]["img_side"]
                 for row in normal_state.itertuples():
                     #ランプ情報をputText
                     cv2.putText(

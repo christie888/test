@@ -58,7 +58,7 @@ def main():
     # 編集後のadditional.pyを読み込み
     add = pd.read_csv("additional.csv")
 
-    new_normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "ramp_num", "x", "y", "color", "LF"])
+    new_normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "lamp_num", "x", "y", "color", "LF"])
 
     # 基準値の初期値
     # ref_ruck_num = str(normal_states[0:1]["ruck_num"])
@@ -95,8 +95,8 @@ def main():
                     # x_num,y_numからそのセルの中心点(x, y)を計算する
                     x = x_num * x_step + (x_step/2)
                     y = y_num * y_step + (y_step/2)
-                    # その(x, y)をnormal_statesのmovie情報に該当する箇所の最初のindexに挿入する、どうせ下で整地されるのでramp_numは0で統一、本indexがどうなるのかは作業しながら観察
-                    part_normal_states = part_normal_states.append({"ruck_num":ruck_num_add, "which_side":which_side_add, "shoot_position":shoot_position_add, "time_log":time_log_add, "ramp_num":0, "x":x, "y":y, "color":color, "LF":LF}, ignore_index=True)
+                    # その(x, y)をnormal_statesのmovie情報に該当する箇所の最初のindexに挿入する、どうせ下で整地されるのでlamp_numは0で統一、本indexがどうなるのかは作業しながら観察
+                    part_normal_states = part_normal_states.append({"ruck_num":ruck_num_add, "which_side":which_side_add, "shoot_position":shoot_position_add, "time_log":time_log_add, "lamp_num":0, "x":x, "y":y, "color":color, "LF":LF}, ignore_index=True)
                     print("x = {}, y = {}".format(x, y))
                     print(part_normal_states)
                 else:
@@ -131,8 +131,8 @@ def main():
                         # x_num,y_numからそのセルの中心点(x, y)を計算する
                         x = x_num * x_step + (x_step/2)
                         y = y_num * y_step + (y_step/2)
-                        # その(x, y)をnormal_statesのmovie情報に該当する箇所の最初のindexに挿入する、どうせ下で整地されるのでramp_numは0で統一、本indexがどうなるのかは作業しながら観察
-                        part_normal_states = part_normal_states.append({"ruck_num":ruck_num_add, "which_side":which_side_add, "shoot_position":shoot_position_add, "time_log":time_log_add, "ramp_num":0, "x":x, "y":y, "color":color, "LF":LF}, ignore_index=True)
+                        # その(x, y)をnormal_statesのmovie情報に該当する箇所の最初のindexに挿入する、どうせ下で整地されるのでlamp_numは0で統一、本indexがどうなるのかは作業しながら観察
+                        part_normal_states = part_normal_states.append({"ruck_num":ruck_num_add, "which_side":which_side_add, "shoot_position":shoot_position_add, "time_log":time_log_add, "lamp_num":0, "x":x, "y":y, "color":color, "LF":LF}, ignore_index=True)
                         print("x = {}, y = {}".format(x, y))
                         print(part_normal_states)
                     else:

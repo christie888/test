@@ -63,25 +63,65 @@ def get_mask_info(sum_img, movie_info, param):
 
     #フィルター（入れないかもなので無くても問題なく動くように）
     delete_index = []
-    thick = param["get_mask_info"]["remove_frame_thick"] #ramp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
+    thick = param["get_mask_info"]["remove_frame_thick"] #lamp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
     for row in stats_df.itertuples():
         #フィルター１　フレームの縁からtmpだけ離れた範囲にあるか否か.
-        #ramp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
+        #lamp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
         #また撮影ポジションによる上下左右のダブり問題に関してもここの調整で対応できる.　これは重要なので後で調整方法について検討
-        if (row.x < thick or row.x >param["frame_w"]-thick or row.y < thick or row.y > param["frame_h"]-thick):
+        if (row.x < thick or row.x > param["frame_w"]-thick or row.y < thick or row.y > param["frame_h"]-thick):
             delete_index.append(row.Index)
             continue
-        #フィルター２　ピクセル数、幅、高さ
-        if (
-            row.pixel <= param["get_mask_info"]["filter_n_pixels"][0] or row.pixel >= param["get_mask_info"]["filter_n_pixels"][1]
-            or row.w <= param["get_mask_info"]["filter_w"][0] or row.w >= param["get_mask_info"]["filter_w"][1]
-            or row.h <= param["get_mask_info"]["filter_h"][0] or row.h >= param["get_mask_info"]["filter_h"][1]
-            ):
+        #フィルター２　ピクセル数
+        if (row.pixel <= param["get_mask_info"]["filter_n_pixels"][0] or row.pixel >= param["get_mask_info"]["filter_n_pixels"][1]):
             delete_index.append(row.Index)
+            continue
+        #フィルター３　幅、高さ
+        if (row.w <= param["get_mask_info"]["filter_w"][0] or row.w >= param["get_mask_info"]["filter_w"][1]
+            or row.h <= param["get_mask_info"]["filter_h"][0] or row.h >= param["get_mask_info"]["filter_h"][1]):
+            delete_index.append(row.Index)
+            continue
+
     #print("delete_index", delete_index)
     stats_df = stats_df.drop(index=delete_index)
     #stats_df = stats_df.drop(index=0) #0行目には背景情報が入るだけなのでいらない
-    stats_df = stats_df.reset_index(drop=True)
+
+
+    # グループに分けていく--------------
+    def isInThreshold(value, center, threshold):
+        return (value < center + threshold) and (center - threshold < value)
+    
+    _stats_df = stats_df.copy()
+    _stats_df = _stats_df.values.tolist()
+    tmp = None
+    threshold = 100  #閾値 px
+
+    result_groups = []   #二次元配列 
+    while True:
+        if len(_stats_df) == 0:
+            break
+        tmp = _stats_df.pop(0) #pop...指定した値の要素を取得し、元のリストから削除する
+        y = tmp[1]  # 要素番号1＝y
+        group = [tmp]
+        for _tmp in _stats_df[:]:
+            if isInThreshold(_tmp[1], y, threshold):
+                group.append(_tmp)
+                _stats_df.remove(_tmp)
+        group = sorted(group)  # result_groupsを要素ごとにx（要素番号0）でソート
+        result_groups.append(group)
+    
+    grouped_stats = []  #再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
+    for i, group in enumerate(result_groups):
+        for j, each in enumerate(group):
+            each.insert(5,str(i)) #グループナンバー挿入
+            each.insert(6,str(j)) #グループの中でのランプナンバー挿入
+            grouped_stats.append(each)
+
+    # 再度stats_dfとしてDF化
+    stats_df = pd.DataFrame(grouped_stats, columns=["x", "y", "w", "h", "pixel", "group_num", "lamp_num"])
+    #print(stats_df)
+    #-------------
+
+    #stats_df = stats_df.reset_index(drop=True)
 
     """
     #フィルターを通過したものの番号をリストに入れる

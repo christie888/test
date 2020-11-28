@@ -7,7 +7,7 @@
 
     "cut_frame":{
         "start_timing":2,
-        "interval":0.3,
+        "interval":0.2,
         "n_frames":10
     },
     
@@ -23,11 +23,11 @@
         "filter_h":[10, 50]
     },
     
-    "get_ramp_imgs":{
+    "get_lamp_imgs":{
         "img_side":70
     },
     
-    "get_ramp_states":{
+    "get_lamp_states":{
         "thresh_level2":120,
         "min_n_pixels": 10,
         "n_clusters":5,
