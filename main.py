@@ -35,6 +35,8 @@ import module.get_mask_info
 import module.get_lamp_imgs
 import module.get_lamp_state
 
+import inspect
+
 import json
 
 
@@ -59,13 +61,6 @@ def main():
     #resultファイル名フォーマット作成
     filename = 'result_log/result_' + now.strftime('%Y%m%d_%H%M%S') + '.csv'
 
-    """
-    #csvファイルの中身を空にする
-    # with open('current_state.csv', 'w') as f:
-    #     f.write('')
-    with open('result.csv', 'w') as f:
-        f.write('')
-    """
 
     #当面の仕様では全動画はinputに入るので、まずは全てリスト取得
     path = "input/"
@@ -114,19 +109,6 @@ def main():
     print("ソート後：", files_list)
     #----------動画ファイルのソート処理
 
-    """
-    #マスク情報の読み込み（マスクcsvの構成とか今適当なのでこの辺どうインサート、読み込みしていくかも記述していく）
-    with open("mask_info.csv") as f:
-        reader = csv.reader(f)
-        mask_infos = [row for row in reader]
-    #正常状態情報の読み込み
-    with open("normal_state.csv") as f:
-        reader = csv.reader(f)
-        normal_states = [row for row in reader]
-    # #csvから戻すと数値がstrになるのでintに戻す
-    # for i, each in enumerate(normal_state):
-    #     normal_state[i][4] = int(each[4])
-    """
 
     #正常状態csvのDataFrameでの読み込み
     normal_states = pd.read_csv("normal_states.csv", index_col=0)
@@ -134,19 +116,26 @@ def main():
     mask_infos = normal_states.drop(columns=["color", "LF", "lamp_num"])
     
     #グローバルリスト（ここに諸情報を追加していき、最終的なアウトプットとする）
-    current_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0]], columns=[
+    current_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0,0,0]], columns=[
         "ruck_num", 
         "which_side", 
         "shoot_position", 
-        "time_log", 
+        "time_log",
+        "group_num",
         "lamp_num",
+        "normal_num_of_lamps",
+        "current_num_of_lamps",  #グループ内の
         "x", 
         "y", 
+        "gap",  #グループの
         "normal_color", 
         "normal_LF", 
         "current_color", 
         "current_LF"
         ])
+
+
+
 
     for i, movie in enumerate(files_list):
         print(i, "：", movie)
@@ -187,7 +176,9 @@ def main():
             #current_states = ["ruck_num", "which_side", "shoot_position", "time_log", "lamp_num", "x", "y", "normal_color", "normal_LF", "current_color", "current_LF"]
             #print(current_states)
 
-            
+            #gif画像生成
+            module.make_gif.make_gif(undistort_frames, normal_state, movie_info, param)
+            """
             #gif画像生成---------------
             x_step = param["gif_grid_x"] #幅方向のグリッド間隔(単位はピクセル)
             y_step = param["gif_grid_y"] #高さ方向のグリッド間隔(単位はピクセル)
@@ -259,7 +250,7 @@ def main():
             clip = ImageSequenceClip(undistort_frames, fps=2)
             clip.write_gif('mask_gif_main/{}_{}_{}_{}.gif'.format(ruck_num, which_side, shoot_position, time_log))
             #---------------gif画像生成
-            
+            """
 
     #current_statesの先頭の不要な行を削除し、再度indexを振り直す
     current_states = current_states.reset_index(drop = True)

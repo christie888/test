@@ -43,13 +43,14 @@ import smtplib
 import collections
 
 
-#ランプ画像からその状態情報（色、点滅情報）を抽出する関数、また結果はcsvで出力
-#関数内には色を判定する機能も書き込む
-#input:lamp_imgs、output:lamp_states（ランプ毎の色、点滅状態情報）
-def get_lamp_state(lamp_imgs, mask_info, param):   #mask_info=["ruck_num", "which_side", "shoot_position", "time_log", "rump_num", "x", "y"]
+#ランプ画像からその状態情報（色、点滅情報）を抽出する
+# input1 : lamp_imgs
+# input2 : mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
+# output : state...    ["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "color", "LF"]
+def get_lamp_state(lamp_imgs, mask_info, param):
     #フレーム毎にリストを用意し、ランプ情報を入れ込む２次元リスト
     each_lampimg_colors = []
-    for i in range(len(lamp_imgs)):  #len(lamp_imgs)=10
+    for i in range(len(lamp_imgs)):  #len(lamp_imgs) = フレーム数
         each_lampimg_colors.append([])
     # ターミナルでの色確認用に selected_h_mean を格納するリスト
     selected_h_means = []
@@ -57,12 +58,10 @@ def get_lamp_state(lamp_imgs, mask_info, param):   #mask_info=["ruck_num", "whic
         selected_h_means.append([])
 
 
-    #各ランプ画像のマスクを作成し、輝度が高い部分（しっかり光っている部分）のみ取り出してそのH,S,V各平均値を取得する
+    
     for i, row in enumerate(lamp_imgs):
-        #ランプimg一枚に対してループ----------------
-        for j, img in enumerate(row): 
-            #print("processing：", "frame ", i, "-", "lamp ", j)
-
+        for j, img in enumerate(row):
+            #各ランプ画像のマスクを作成し、輝度が高い部分（しっかり光っている部分）のみ取り出してそのH,S,V各平均値を取得する
             #各フレームの閾値処理
             lamp_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)  #グレースケール
             ret, thresh = cv2.threshold(
@@ -139,28 +138,11 @@ def get_lamp_state(lamp_imgs, mask_info, param):   #mask_info=["ruck_num", "whic
                 #print("frame({}/{})__lamp({}/{})　：No_lamp".format(i+1, len(lamp_imgs), j+1, len(row)))
 
 
-    """
-    #ランプ毎に情報をまとめるため、転置させる
-    each_lamp_colors = []
-    for i in range(len(lamp_imgs[0])):   #例）lamp_imgs...(45個、10フレーム分)　ランプ個数分のリストを入れ込むためにlamp_imgs[0]を引用（何故か多い...）
-        each_lamp_colors.append([])
-    for each in each_lampimg_colors:
-        for i, each in enumerate(each):
-            each_lamp_colors[i].append(each)
-    #print(each_lamp_colors)
-    #例）each_lamp_colors...(10フレーム, 28個)
-    """
-    #print("---------------------------------")
     each_lampimg_colors = np.array(each_lampimg_colors)  #ndarray変換
     selected_h_means = np.array(selected_h_means)
-    #print(each_lampimg_colors.shape)
-    #print(selected_h_means.shape)
-    #print(selected_h_means)
+
     each_lampimg_colors= each_lampimg_colors.T  #転置　例）（10フレーム, ランプ45個）→（ランプ45個、10フレーム)
     selected_h_means = selected_h_means.T
-    #print(each_lampimg_colors.shape)
-    #print(selected_h_means.shape)
-    #print("---------------------------------")
 
 
     # ターミナルでの確認用
@@ -179,16 +161,6 @@ def get_lamp_state(lamp_imgs, mask_info, param):   #mask_info=["ruck_num", "whic
                 print("frame({}/{})： No_lamp".format(j+1, len(row_c)))
 
 
-    
-    """
-    #状態判定
-    final_results = []
-    #まず基本情報を追加
-    for i in range(len(each_lampimg_colors)):
-        final_results.append([movie_info[0], movie_info[1], movie_info[2], movie_info[3], i])
-    """
-
-
     #状態情報を追加したstateの作成---------------
     state = mask_info
     state["color"] = "a"
@@ -205,83 +177,22 @@ def get_lamp_state(lamp_imgs, mask_info, param):   #mask_info=["ruck_num", "whic
         if "No_lamp" in each:
             each = [temp for temp in each if temp != "No_lamp"]  #No_lamp以外
             if len(each) == 0:
-                state.iat[i, 8] = "OFF" #6はcolor
-                state.iat[i, 9]  = "-" #7はLF
+                state.iat[i, 10] = "OFF" #6はcolor
+                state.iat[i, 11]  = "-" #7はLF
             else:
                 counter = collections.Counter(each)
                 most = counter.most_common()
-                state.iat[i, 8] = most[0][0]
-                state.iat[i, 9]  = "F"
+                state.iat[i, 10] = most[0][0]
+                state.iat[i, 11]  = "F"
         else:
             counter = collections.Counter(each)
             most = counter.most_common()
-            state.iat[i, 8] = most[0][0]
-            state.iat[i, 9]  = "L"
+            state.iat[i, 10] = most[0][0]
+            state.iat[i, 11]  = "L"
     print(state)
-
-    """
-        # green
-        if set(unique) == set(["green"]): 
-            state.iat[i, 6] = "green" #6はcolor
-            state.iat[i, 7]  = "L" #7はLF
-        elif set(unique) == set(["green", "No_lamp"]):
-            state.iat[i, 6] = "green"
-            state.iat[i, 7] = "F"
-        # red
-        if set(unique) == set(["red"]):
-            state.iat[i, 6] = "red"
-            state.iat[i, 7]  = "L"
-        elif set(unique) == set(["red", "No_lamp"]):
-            state.iat[i, 6] = "red"
-            state.iat[i, 7] = "F"
-        # yellow
-        if set(unique) == set(["yellow"]):
-            state.iat[i, 6] = "yellow"
-            state.iat[i, 7]  = "L"
-        elif set(unique) == set(["yellow", "No_lamp"]):
-            state.iat[i, 6] = "yellow"
-            state.iat[i, 7] = "F"
-        # blue
-        if set(unique) == set(["blue"]):
-            state.iat[i, 6] = "blue"
-            state.iat[i, 7]  = "L"
-        elif set(unique) == set(["blue", "No_lamp"]):
-            state.iat[i, 6] = "blue"
-            state.iat[i, 7] = "F"
-        # 未定義色
-        elif set(unique) == set(["other"]):
-            state.iat[i, 6] = "other"
-            state.iat[i, 7] = "L"
-        elif set(unique) == set(["other", "No_lamp"]):
-            state.iat[i, 6] = "other"
-            state.iat[i, 7] = "F"
-        #ランプなし
-        elif set(unique) == set(["No_lamp"]):
-            state.iat[i, 6] = "off"
-            state.iat[i, 7] = "-"
-
-        else:
-            state.iat[i, 6] = "multi_color"
-            state.iat[i, 7] = "-"
-    """
     #--------------------
-        
-
-    """
-    #fiinal_resultsを正常状態記録としてcsv出力（呼び出し元によってどっちのcsvに出力するか分ける）
-    if inspect.stack()[1].filename == "make_mask_and_normal.py":
-        with open("normal_state.csv", "a") as f:
-            writer = csv.writer(f)
-            writer.writerows(final_results)
-    elif inspect.stack()[1].filename == "main.py":
-        # #↓current_stateの内容はリストのまま使うし、resultのcsvにも踏襲されているのでわざわざ出力しなくて良い
-        # with open("current_state.csv", "a") as f:
-        #     writer = csv.writer(f)
-        #     writer.writerows(final_results)
-        pass
-    else:
-        print("エラー：正しくcsvに保存されていません")
-    """
+    
+    
     #print(state)
     return(state)
 

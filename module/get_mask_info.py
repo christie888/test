@@ -30,7 +30,8 @@ from sklearn.cluster import KMeans
 
 
 #sum_imgをフィルタリングしてマスク情報を取得する関数
-#input:sum_img、output:mask_info
+#input: sum_img
+#output: mask_info...["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
 def get_mask_info(sum_img, movie_info, param):
     #オブジェクト化-----
     nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(sum_img)
@@ -39,29 +40,11 @@ def get_mask_info(sum_img, movie_info, param):
     #stats...オブジェクトのバウンディングボックス（開始点の x 座標、開始点の y 座標、幅、高さ、オブジェクトの総ピクセル数））
     #centroids...オブジェクトの重心
     #----------
-    
-    """
-    #statsの先頭にラベルを挿入
-    stats_2 = []
-    for i , stat in enumerate(stats):
-        stat = np.insert(stat, 0, i)
-        stats_2.append(stat)
-    """
 
     #statsをdf化
     stats_df = pd.DataFrame(stats, columns=["x", "y", "w", "h", "pixel"])
-    
-    """
-    #フィルター（オブジェクトのピクセル数、オブジェクトサイズ）
-    filtered_stats = []
-    for i, stat in enumerate(stats_2):
-        print("w: ", stat[3], "---", "h: ", stat[4])
-        if (stat[5] >=100 and stat[5]<400) and (stat[3]>=15 and stat[3]<=40) and (stat[4]>=10 and stat[4]<=40):   #stat[5]...オブジェクトのピクセル数（ここの条件要検討）
-            filtered_stats.append(stat)
-    #print(filtered_stats)
-    """
 
-    #フィルター（入れないかもなので無くても問題なく動くように）
+    #フィルター -----------------------------------
     delete_index = []
     thick = param["get_mask_info"]["remove_frame_thick"] #lamp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
     for row in stats_df.itertuples():
@@ -80,10 +63,15 @@ def get_mask_info(sum_img, movie_info, param):
             or row.h <= param["get_mask_info"]["filter_h"][0] or row.h >= param["get_mask_info"]["filter_h"][1]):
             delete_index.append(row.Index)
             continue
+    #--------------------------------------------
 
     #print("delete_index", delete_index)
     stats_df = stats_df.drop(index=delete_index)
     #stats_df = stats_df.drop(index=0) #0行目には背景情報が入るだけなのでいらない
+
+    #いらない情報[w, h, pixel]を削除
+    stats_df = stats_df.drop(columns=["w", "h", "pixel"])  # → stats_df...["x", "y"]
+
 
 
     # グループに分けていく--------------
@@ -112,33 +100,18 @@ def get_mask_info(sum_img, movie_info, param):
     grouped_stats = []  #再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
     for i, group in enumerate(result_groups):
         for j, each in enumerate(group):
-            each.insert(5,str(i)) #グループナンバー挿入
-            each.insert(6,str(j)) #グループの中でのランプナンバー挿入
+            each.insert(3,str(i)) #グループナンバー
+            each.insert(4,str(len(result_groups))) #グループ数
+            each.insert(5,str(j)) #グループの中でのランプナンバー
+            each.insert(6,str(len(group))) #ランプ数
             grouped_stats.append(each)
 
     # 再度stats_dfとしてDF化
-    stats_df = pd.DataFrame(grouped_stats, columns=["x", "y", "w", "h", "pixel", "group_num", "lamp_num"])
+    stats_df = pd.DataFrame(grouped_stats, columns=["x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"])
     #print(stats_df)
-    #-------------
+    #---------------------------------
 
-    #stats_df = stats_df.reset_index(drop=True)
 
-    """
-    #フィルターを通過したものの番号をリストに入れる
-    filtered_no = []
-    for each in filtered_stats:
-        filtered_no.append(each[0])
-    """
-    
-    """
-    #マスク情報　フィルターを通過したオブジェクトの（ランプ番号[新しく通しで振る]、ラック番号、左右情報、撮影位置番号、撮影date、重心x、重心y）
-    mask_info = []
-    for i, no in enumerate(filtered_no):
-        x = int(centroids[no][0])
-        y = int(centroids[no][1])
-        mask_info.append([movie_info[0], movie_info[1], movie_info[2], movie_info[3], i, x, y])
-    #print(mask_info)
-    """
 
     #マスク情報作成
     #stats_dfをベースにmovie_infoをインサートしていく
@@ -146,9 +119,10 @@ def get_mask_info(sum_img, movie_info, param):
     stats_df.insert(1, "which_side", movie_info[1] )
     stats_df.insert(2, "shoot_position", movie_info[2]  )
     stats_df.insert(3, "time_log", movie_info[3] )
-    #いらない情報[w, h, pixel]を削除
-    stats_df = stats_df.drop(columns=["w", "h", "pixel"])
 
 
+    # ---------------------------------
+    # mask_info：   ["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
+    # ---------------------------------
     return(stats_df)   #stats_dfをmask_infoとする
     

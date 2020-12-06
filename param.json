@@ -34,7 +34,7 @@
         "center_h_slice":[],
         "red_h":[0, 10],
         "yellow_h":[25,35],
-        "green_h":[30, 60],
+        "green_h":[35, 55],
         "blue_h":[100,130]
     }
 }
