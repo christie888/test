@@ -149,15 +149,15 @@ def main():
             print("--------------------------")
 
             # make_mask / make_normal_state_info----------
-            #input--------------------------------------------------------------------------------------------
+            #input-------------------------------------------------------------------------------------------------------------------------------------------------------------
             # mask_info：   ["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
-            # normal_state：["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "color", "LF"]
-            #--------------------------------------------------------------------------------------------
+            # normal_state：["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", color", "LF"]
+            #------------------------------------------------------------------------------------------------------------------------------------------------------------------
             frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
             sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
-            cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
-            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num"]
+            #cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
+            mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
             
             lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)
             normal_state = module.get_lamp_state.get_lamp_state(lamp_imgs, mask_info, param)
@@ -173,7 +173,7 @@ def main():
             normal_states = pd.concat([normal_states, normal_state], axis=0)
 
             #gif画像生成
-            module.make_gif.make_gif(undistort_frames, normal_state, movie_info, param)
+            module.make_gif.make_gif(undistort_frames, normal_state, movie_info, param, "mask_gif")
 
             # #連結画像の作成-----
             # lamp_imgs = np.array(lamp_imgs) #ndarray化

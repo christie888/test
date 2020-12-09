@@ -47,8 +47,9 @@ import json
 
 
 # input : normal_state...["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "color", "LF"]
+#         dir_name...gifを保存する先のファイル名
 # output : gif画像
-def make_gif(undistort_frames, normal_state, movie_info, param):
+def make_gif(undistort_frames, normal_state, movie_info, param, gif_dir_name):
     x_step = param["gif_grid_x"] #幅方向のグリッド間隔(単位はピクセル)
     y_step = param["gif_grid_y"] #高さ方向のグリッド間隔(単位はピクセル)
 
@@ -72,7 +73,7 @@ def make_gif(undistort_frames, normal_state, movie_info, param):
         img_side = param["get_lamp_imgs"]["img_side"]
         for row in normal_state.itertuples():
             #ランプ情報をputText（呼び出しもとファイルで処理を分ける）
-            if inspect.stack()[1].filename == "make_mask_and_normal.py":
+            if (inspect.stack()[1].filename == "make_mask_and_normal.py") or (inspect.stack()[1].filename == "revision.py") :
                 cv2.putText(
                     img = frame, 
                     text = '{}:{}:{}'.format(str(row.lamp_num), str(row.color)[0], str(row.LF)), 
@@ -131,7 +132,7 @@ def make_gif(undistort_frames, normal_state, movie_info, param):
     ruck_num, which_side, shoot_position, time_log, cam_num = movie_info
     undistort_frames = list(undistort_frames)  #gifにするのに標準リスト化
     clip = ImageSequenceClip(undistort_frames, fps=2)
-    clip.write_gif('mask_gif/{}_{}_{}_{}.gif'.format(ruck_num, which_side, shoot_position, time_log))
+    clip.write_gif('{}/{}_{}_{}_{}.gif'.format(gif_dir_name, ruck_num, which_side, shoot_position, time_log))
 
 
 

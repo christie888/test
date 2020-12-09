@@ -45,8 +45,15 @@ import collections
 
 #ランプ画像からその状態情報（色、点滅情報）を抽出する
 # input1 : lamp_imgs
-# input2 : mask_info...["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
-# output : state...    ["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "color", "LF"]
+# input2 : mask_info ------------------------------------
+# ruck_num, which_side, shoot_position, time_log, 
+# group_num, num_of_groups, lamp_num, num_of_lamps, x, y
+# -------------------------------------------------------
+# output : state-----------------------------------------
+# ruck_num, which_side, shoot_position, time_log, 
+# group_num, num_of_groups, lamp_num, num_of_lamps, x, y
+# color, LF
+#-------------------------------------------------------
 def get_lamp_state(lamp_imgs, mask_info, param):
     #フレーム毎にリストを用意し、ランプ情報を入れ込む２次元リスト
     each_lampimg_colors = []

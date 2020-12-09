@@ -30,7 +30,10 @@ import inspect
 
 
 #マスク情報を使ってランプ画像を切り抜く関数
-# input1 : mask_info...["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
+# input1 : mask_info -----------------------------------
+# ruck_num, which_side, shoot_position, time_log,
+# group_num, num_of_groups, lamp_num, num_of_lamps, x, y
+# ------------------------------------------------------
 # input2 : frames
 # output : lamp_imgs
 def get_lamp_imgs(mask_info, undistort_frames, param):

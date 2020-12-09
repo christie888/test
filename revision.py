@@ -38,16 +38,20 @@ import module.make_gif
 import inspect
 import json
 
-# normal_states ... ["ruck_num", "which_side", "shoot_position", "time_log", "group_num", "lamp_num", "num_of_lamps", "x", "y", "color", "LF"]
-# additional ... ["movie", "x_num", "y_num"]
-# delete ... ["movie", "group_num", "ramp_num"]
-def main():
+import math
 
+import operator
+
+
+
+# additional ... ["movie", "x_num", "y_num"]
+# delete ...     ["movie", "group_num", "ramp_num"]
+def main():
     #パラメータの読み込み
     json_open = open("param.json", "r")
     param = json.load(json_open)
 
-    #当面の仕様では全動画はinputに入るので、まずは全てリスト取得
+    #動画ファイル処理--------------------------------------------------
     path = "pre_input/"
     files = os.listdir(path)
     files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
@@ -55,9 +59,8 @@ def main():
         files_list.remove('.DS_Store')
     print("ソート前：", files_list)
 
-    #動画ファイルのソート処理----------
+    #ソート
     id_order = param["ruck_order"]  #ruckの並び順
-
     def cmp_to_key(mycmp):
         'Convert a cmp= function into a key= function'
         class K:
@@ -88,336 +91,577 @@ def main():
         return int(file1_number) - int(file2_number)
     files_list.sort(key=cmp_to_key(compare_files))
     print("ソート後：", files_list)
-    #----------
+    #--------------------------------------------------------------動画ファイル処理（終）
 
 
     # additional.csvを読み込み
     additional = pd.read_csv("additional.csv")
     # delete.csvを読み込み
     delete = pd.read_csv("delete.csv")
+    
     # normal_states.csvを読み込み
     normal_states = pd.read_csv("normal_states.csv", index_col=0)
-    # normal_state.csvに additionalカラム / deleteカラム　をそれぞれ用意
-    normal_states["additional"] = None
-    normal_states["distance"] = None
-    # additionalの各レコードを読み込み、x_num / y_num　に相当する箇所にランプを挿入. additionalカラムにtrueをいれる.（この時点ではグループ見所属の欄外）
-    y_step=20 #高さ方向のグリッド間隔(単位はピクセル)
-    x_step=20 #幅方向のグリッド間隔(単位はピクセル)
+    # --normal_states----------------------------------------
+    # ruck_num	which_side, shoot_position, time_log, 
+    # group_num	num_of_groups, lamp_num, num_of_lamps, x, y, 
+    # color, LF
+    #--------------------------------------------------------
+
+    # "num_of_lamps", color, LF は再定義するので除く. "num_of_groups","group_num", "lamp_num" はdeleteの対象をサーチする時に必要なので残す
+    normal_states = normal_states.reindex(columns=[
+        "ruck_num", "which_side", "shoot_position", "time_log", 
+        "group_num", "num_of_groups", "lamp_num", "x", "y"
+        ])
+    # --normal_states---------------------------------
+    # ruck_num	which_side, shoot_position, time_log, 
+    # group_num, num_of_groups,lamp_num, x, y
+    #-------------------------------------------------
 
 
+    
+    
+
+    
+    #２点間を曲座標ベクトル変換
+    def getxy_RD(x, y, X, Y):
+        _x, _y = (X-x), (Y-y)
+        r = math.sqrt(_x**2+_y**2)
+        rad = math.atan2(_y, _x)
+        degree = math.degrees(rad)
+        #print(r, degree)
+        return r, degree
+
+
+    # rev_part_movie_ns を順次追加していくDF
     new_normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0,0,0,0]], columns=[
-        "ruck_num", 
-        "which_side", 
-        "shoot_position", 
-        "time_log", 
-        "group_num",
-        "num_of_groups",
-        "lamp_num", 
-        "num_of_lamps", 
-        "x", 
-        "y", 
-        "color",
-        "LF",
-        "additional",
-        "distance"
-    ])
+        "ruck_num", "which_side", "shoot_position", "time_log", 
+        "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y",
+        "r", "degree", "color", "LF"
+        ])
+    print(new_normal_states)
 
-    delete_process = pd.DataFrame([[0,0,0]], columns=[
-        "movie", "del_x", "del_y"
-    ])
+    # movie毎に分割
+    for i, movie in enumerate(files_list):
+        print(i, "：", movie)
+        cap =  cv2.VideoCapture(path + movie)
 
-    #基準
-    ref_ruck_num = "a"
-    ref_which_side = "a"
-    ref_shoot_position = 0
-    ref_group_num = 0
-    #基準と比べてmovie_info+group_numが一致しない→新しいパートなので取得
-    for i, each in enumerate(normal_states.itertuples()):
-        ruck_num = each.ruck_num
-        which_side = each.which_side
-        shoot_position = each.shoot_position
-        group_num = each.group_num
-        if (str(ruck_num) == str(ref_ruck_num)) & (str(which_side) == str(ref_which_side)) & (str(shoot_position) == str(ref_shoot_position)) & (str(group_num) == str(ref_group_num)):
-            pass  #各情報が基準と一致している場合、一つ前の要素と同じグループ内なのでパス
+        if cap.isOpened()==False:
+            print("[{}]：read error.".format(movie))
         else:
-            part_normal_states = normal_states[  #各情報が基準と一致していない場合、一つ前までの要素とは異なるグループに入ったので、そのグループを部分として抜き出す
-                (normal_states["ruck_num"]==ruck_num) & 
-                (normal_states["which_side"]==which_side) & 
-                (normal_states["shoot_position"]==shoot_position) &
-                (normal_states["group_num"]==group_num)
-                ]
-            #print(part_normal_states)
+            print("[{}]：read success.".format(movie))
 
-            print("--------------------", i)
-            for j, add_each in enumerate(additional.itertuples()):  #additionalを一つずつ回す
-                #print(i)
-                add_movie = add_each.movie
-                add_ruck_num, add_which_side, add_shoot_position, add_time_log, _ = add_movie.replace(".mp4", "").split("_")
-                add_group_num = each.group_num
+            # 動画名から各種情報を取得
+            ruck_num, which_side, shoot_position, time_log, cam_num = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
+            movie_info = [ruck_num, which_side, shoot_position, time_log, cam_num]
+            print("start_processing----------")
+            print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
+            print("--------------------------")
+
+            # additional, delete を修正した part_group_ns を順次追加していくDF
+            rev_part_movie_ns = pd.DataFrame([[0,0,0,0,0,0,0,0,0]], columns=[
+                "ruck_num", "which_side", "shoot_position", "time_log", 
+                "group_num","num_of_groups","lamp_num", "x", "y"
+                ])
+
+
+            # normal_states を movie毎に分割
+            part_movie_ns = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
+            # --part_movie_ns---------------------------------
+            # ruck_num	which_side, shoot_position, time_log, 
+            # group_num, num_of_groups, lamp_num, x, y
+            #-------------------------------------------------
+
+
+            # additional
+            y_step=20 #高さ方向のグリッド間隔(単位はピクセル)
+            x_step=20 #幅方向のグリッド間隔(単位はピクセル)
+            for j, add_each in enumerate(additional.itertuples()):
+                #print("additional:\n",j, "\n",  additional)
+                add_ruck_num, add_which_side, add_shoot_position, add_time_log, _ = add_each.movie.replace(".mp4", "").split("_")
                 if np.array([
-                    (str(add_ruck_num) == str(ruck_num)), 
-                    (str(add_which_side) == str(which_side)), 
-                    (str(add_shoot_position) == str(shoot_position)), 
-                    (str(add_group_num) == str(group_num))
+                        (str(add_ruck_num) == str(ruck_num)), 
+                        (str(add_which_side) == str(which_side)), 
+                        (int(add_shoot_position) == int(shoot_position))
                     ]).all():
                     # x_num,y_numからそのセルの中心点(x, y)を計算する
                     x = add_each.x_num * x_step + (x_step/2)
                     y = add_each.y_num * y_step + (y_step/2)
-
-                    add = {
-                        "ruck_num":add_ruck_num, 
-                        "which_side":add_which_side, 
-                        "shoot_position":add_shoot_position, 
-                        "time_log":add_time_log, 
-                        "group_num":add_group_num, 
-                        "lamp_num":None, 
-                        "num_of_lamps":None, 
-                        "x":int(x), 
-                        "y":int(y), 
-                        "color":None,
-                        "LF": None,
-                        "additional":1,
-                        "distance":None
-                        }
-                    part_normal_states = part_normal_states.append(add, ignore_index=True)
-                    print("add----------------------", j)
-                else:
-                    pass
-                
-            for j, each in enumerate(delete.itertuples()):  #deleteを一つずつ回す
-                movie = each.movie
-                del_ruck_num, del_which_side, delshoot_position, _, _ = movie.replace(".mp4", "").split("_")
-                del_group_num = each.group_num
-                del_lamp_num = each.lamp_num
-                if np.array([
-                    (str(del_ruck_num) == str(ruck_num)), 
-                    (str(del_which_side) == str(which_side)), 
-                    (str(delshoot_position) == str(shoot_position)), 
-                    (str(del_group_num) == str(group_num))
-                    ]).all():
-
-                    del_x = part_normal_states.iat[del_lamp_num, 8]  # (del_lamp_num行, x)
-                    del_y = part_normal_states.iat[del_lamp_num, 9]  # (del_lamp_num行, y)
-                    delete_process = delete_process.append({"movie":movie, "del_x":del_x, "del_y":del_y}, ignore_index=True)
-                else:
-                    pass
-
-            if (part_normal_states["additional"].sum() > 0):  #もしpart_normal_statesの中のadditionalの合計が1以上なら
-                # movie情報から必要なmovieをチョイス
-                for i, movie in enumerate(files_list):
-                    _ruck_num, _which_side, _shoot_position, _, _ = movie.replace(".mp4", "").split("_")
-                    if (_ruck_num==ruck_num) & (_which_side==which_side) & (int(_shoot_position)==int(shoot_position)):
-                        cap =  cv2.VideoCapture(path + movie)
-                        if cap.isOpened()==False:
-                            print("[{}]：read error.".format(movie))
-                        else:
-                            print("[{}]：read success.".format(movie))
-
-                            #動画名から各種情報を取得
-                            ruck_num, which_side, shoot_position, time_log, cam_num = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date, カメラナンバー
-                            movie_info = [ruck_num, which_side, shoot_position, time_log, cam_num]
-                            print("start_processing----------")
-                            print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
-                            print("--------------------------")
-                            
-                            #mask_infoの作成-----------------------------------------------
-                            #mask_info: ["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
-                            stats_df =  part_normal_states.reindex(columns=["x", "y"]) # → stats_df...["x", "y"]
-
-                            # delete_process分を削除する
-                            #stats_dfとdelet_processを標準リストにすれば該当するところ消すとかできるのでは
+                    add = [
+                        add_ruck_num, #"ruck_num": 
+                        add_which_side, #"which_side":
+                        add_shoot_position, #"shoot_position":
+                        add_time_log, #"time_log":
+                        x, #"x":
+                        y, #"y":
+                        0, #"group_num":
+                        1000 #"lamp_num":
+                    ]
+                    #part_movie_T = part_movie.T
+                    #part_movie_T.insert(0, j, add)
+                    #part_movie = part_movie_T.T
+                    #part_movie = part_movie.append(add, ignore_index=True)
+                    part_movie_ns.loc[0] = add
+                    additional = additional.drop(0, errors='ignore')  #適用したらadditionalDFから削除
+                    additional = additional.reset_index(drop = True)  # インデックス0が消えて先頭が1のままだと次回0を削除できないからインデックスを振り直す
+                    print("additional...")
+                    print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・x：{}\n・y：{}\nを追加".format(ruck_num, which_side, shoot_position, x, y))
 
 
-                            def isInThreshold(value, center, threshold):
-                                return (value < center + threshold) and (center - threshold < value)
-                            
-                            _stats_df = stats_df.copy()
-                            _stats_df = _stats_df.values.tolist()
-                            tmp = None
-                            threshold = 100  #閾値 px
+            # part_movie_ns を group毎に分割
+            for j in range(int(part_movie_ns.iat[0, 5])):  #適当数繰り返す
+                part_group_ns = part_movie_ns.query('group_num == {}'.format(j))
+                # --part_group_ns---------------------------------
+                # ruck_num	which_side, shoot_position, time_log, 
+                # group_num, num_of_groups, lamp_num, x, y
+                # -------------------------------------------------
 
-                            result_groups = []   #二次元配列 
-                            while True:
-                                if len(_stats_df) == 0:
-                                    break
-                                tmp = _stats_df.pop(0) #pop...指定した値の要素を取得し、元のリストから削除する
-                                y = tmp[1]  # 要素番号1＝y
-                                group = [tmp]
-                                for _tmp in _stats_df[:]:
-                                    if isInThreshold(_tmp[1], y, threshold):
-                                        group.append(_tmp)
-                                        _stats_df.remove(_tmp)
-                                group = sorted(group)  # result_groupsを要素ごとにx（要素番号0）でソート
-                                result_groups.append(group)
-                            
-                            grouped_stats = []  #再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
-                            for i, group in enumerate(result_groups):
-                                for j, each in enumerate(group):
-                                    each.insert(2,str(i)) #グループナンバー
-                                    each.insert(3,str(len(result_groups))) #グループ数
-                                    each.insert(4,str(j)) #グループの中でのランプナンバー
-                                    each.insert(5,str(len(group))) #ランプ数
-                                    grouped_stats.append(each)
+                # # DFだと操作が難しそうなので一度リストに戻す...
+                # part_group_ns = part_group_ns.values.tolist()
+                # print("part_group_ns:\n", part_group_ns)
+                #delete
+                for k, del_each in enumerate(delete.itertuples()):
+                    #print("delete:\n",j, "\n",  delete)
+                    del_ruck_num, del_which_side, del_shoot_position, _, _ = del_each.movie.replace(".mp4", "").split("_")
+                    if np.array([
+                        (str(del_ruck_num) == str(ruck_num)), 
+                        (str(del_which_side) == str(which_side)), 
+                        (int(del_shoot_position) == int(shoot_position)),
+                        (int(del_each.group_num) == int(part_group_ns.iat[0,4]))
+                        ]).all():
+                        # movie情報 & group_num & lamp_num が一致しないものだけ取得して再代入
+                        part_group_ns = part_group_ns[part_group_ns["lamp_num"] != del_each.lamp_num]
+                        delete = delete.drop(0, errors='ignore')  #適用したらdeleteDFから削除
+                        delete = delete.reset_index(drop = True)
+                        print("delete...")
+                        print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・group_num：{}\n・lamp_num：{}\nを削除".format(ruck_num, which_side, shoot_position, del_each.group_num, del_each.lamp_num))
 
-                            # 再度stats_dfとしてDF化
-                            stats_df = pd.DataFrame(grouped_stats, columns=["x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"])
-                            
-                            #マスク情報作成
-                            #stats_dfをベースにmovie_infoをインサートしていく
-                            stats_df.insert(0, "ruck_num", movie_info[0])  #df自体が更新されるので再代入不要
-                            stats_df.insert(1, "which_side", movie_info[1] )
-                            stats_df.insert(2, "shoot_position", movie_info[2]  )
-                            stats_df.insert(3, "time_log", movie_info[3] )
+                # part_group_ns を rev_part_movie_ns にconcat
+                rev_part_movie_ns = pd.concat([rev_part_movie_ns, part_group_ns])
+                # --rev_part_movie_ns-----------------------------
+                # ruck_num, which_side, shoot_position, time_log, 
+                # group_num, num_of_groups, lamp_num, x, y
+                #-------------------------------------------------
 
-                            mask_info = stats_df
-                            #-----------------------------------------------
+            # rev_part_movie_ns を rev_ns にconcat
+            rev_part_movie_ns = rev_part_movie_ns.reset_index(drop = True)
+            rev_part_movie_ns = rev_part_movie_ns.drop(index = 0)
+            rev_part_movie_ns = rev_part_movie_ns.reset_index(drop = True)
 
-                            frames = module.cut_frame.cut_frame(cap, param)  # get_frameでフレームを取得
-                            undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
-                            lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)
-                            part_normal_states = module.get_lamp_state.get_lamp_state(lamp_imgs, mask_info, param)
+            print("------------------------------------")
 
-                        print("---------------------------------------------")
-
+            #グルーピング & 極座標
+            def isInThreshold(value, group_min_y, threshold):
+                return (value > group_min_y) and (value < group_min_y + threshold)
             
-            # part_normal_staesからdeleteのところだけ飛ばして
+            _rev_part_movie_ns = rev_part_movie_ns.copy()
+            _rev_part_movie_ns = _rev_part_movie_ns.values.tolist()  #一度リストに変換
+            # make_mask_and_normal の時点で整地されており、このままではグルーピングのルールが異なるため、一度 _rev_part_movie_ns の　"y" で再びソートする
+            _rev_part_movie_ns = sorted(_rev_part_movie_ns, key=operator.itemgetter(8))  #8..."y"
 
-            # part_normal_statesをnew_normal_statesに追加
-            new_normal_states = pd.concat([new_normal_states, part_normal_states])
-            #基準値の入れ替え
-            ref_ruck_num = ruck_num
-            ref_which_side = which_side
-            ref_shoot_position = shoot_position
-            ref_group_num = group_num
-    
+            tmp = None
+            threshold = 200  #閾値 px
 
+            result_groups = []  #３次元配列 [group0(2次元), group1, group2, ...] 
+            while True:
+                if len(_rev_part_movie_ns) == 0:
+                    break
+                tmp = _rev_part_movie_ns.pop(0) #pop...指定した値の要素を取得し、元のリストから削除する
+                y = tmp[8]
+                group = [tmp]
+                for _tmp in _rev_part_movie_ns[:]:
+                    if isInThreshold(int(_tmp[8]), int(y), int(threshold)):
+                        group.append(_tmp)
+                        _rev_part_movie_ns.remove(_tmp)
+                group = sorted(group, key=operator.itemgetter(7))  # result_groupsを要素ごとに x でソート
+                result_groups.append(group)
+            #print(result_groups)
+
+            grouped_stats = []  #３次元リストから再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
+            for k, group in enumerate(result_groups):
+                for l, each in enumerate(group):
+                    each[4] = k  #group_num
+                    each[5] = len(result_groups)  #num_of_groups（人グループを）
+                    each[6] = l  #lamp_num
+                    each.insert(7, len(group))  #num_of_groups
+
+                    print("each:", each)
+
+                    # 極座標ベクトル
+                    if l == len(group) - 1:
+                        each.insert(10, 0)  #r
+                        each.insert(11, 0)  #degree
+                    else:
+                        x = group[l][8]
+                        print("x", x)
+                        y = group[l][9]
+                        print("y",y)
+                        X = group[l+1][7]
+                        print("X",X)
+                        Y = group[l+1][8]
+                        print("Y",Y)
+                        r, degree = getxy_RD(x, y, X, Y)
+                        each.insert(10,str(r))
+                        each.insert(11,str(degree))
+
+                    grouped_stats.append(each)
+
+            #--grouped_stats-----------------------------------------
+            # ruck_num, which_side, shoot_position, time_log, 
+            # group_num, num_of_groups, lamp_num, num_of_lamps,  x, y,
+            # r, degree
+            #---------------------------------------------------------
+
+            # grouped_stats を再びDF化
+            rev_part_movie_ns = pd.DataFrame(grouped_stats, columns=[
+                "ruck_num", "which_side", "shoot_position", "time_log", 
+                "group_num", "num_of_groups", "lamp_num", "num_of_lamps",  "x", "y",
+                "r", "degree"
+            ])
+
+
+            #ランプの状態検知
+            frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
+            undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
+            #sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
+
+            # mask_info----------------------------------------------
+            # ruck_num, which_side, shoot_position, time_log,
+            # group_num, num_of_groups, lamp_num, num_of_lamps, x, y
+            # -------------------------------------------------------
+            mask_info = rev_part_movie_ns.reindex(columns=[
+                "ruck_num", "which_side", "shoot_position", "time_log", 
+                "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y"
+                ])
+            lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)  #ランプ画像
+            rev_ns = module.get_lamp_state.get_lamp_state(lamp_imgs, mask_info, param)  #状態
+
+            #gif画像生成
+            module.make_gif.make_gif(undistort_frames, rev_ns, movie_info, param, "mask_gif_rev")
+
+            # rev_part_movie_ns と rev_ns をいい感じにconcatして
+            # new_normal_state --------------------------------------
+            # ruck_num, which_side, shoot_position, time_log,
+            # group_num, num_of_groups, lamp_num, num_of_lamps, x, y,
+            # "r", "degree", "color", "LF"
+            # -------------------------------------------------------
+            # に整える.
+            rev_ns = rev_ns.reindex(columns=["color", "LF"])
+            new_normal_state = pd.concat([rev_part_movie_ns, rev_ns], axis=1)
+            
+            # rev_part_movie_ns を rev_ns にconcat
+            new_normal_states = pd.concat([new_normal_states, new_normal_state], axis=0)
+            
+            
     new_normal_states = new_normal_states.reset_index(drop = True)
     new_normal_states = new_normal_states.drop(index = 0)
     new_normal_states = new_normal_states.reset_index(drop = True)
-    new_normal_states.to_csv("new_normal_states.csv")
+    new_normal_states.to_csv("new_normal_states.csv") 
 
-    delete_process = delete_process.reset_index(drop = True)
-    delete_process = delete_process.drop(index = 0)
-    delete_process = delete_process.reset_index(drop = True)
-    delete_process.to_csv("delete_process.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     """
-    # deleteの各レコードを読み込み、group_num, ranp_numに相当するランプのdeleteカラムにtrueをいれる.（この時点ではグループ見所属の欄外）
-    # deleteカラムがfalseのもののみでグループ化を行う. r_group_num, r_num_of_groups, r_lamp_num, r_num_of_lamps として情報を記録
-    # ランプ間距離を格納する「ditance」カラムを作成し、とりあえずxの相対距離を取得、格納
-    # normal_state ... ["ruck_num", "which_side", "shoot_position", "time_log", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y", "color", "LF", "additional", "delete",  "r_group_num", "r_num_of_groups", "r_lamp_num", "r_num_of_lamps", "ditance"]
-    # いらないカラムを切る
-    # normal_state ... ["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "color", "LF", "additional", "delete",  "r_group_num", "r_num_of_groups", "r_lamp_num", "r_num_of_lamps", "ditance"]
-    # カラムを並び替えて整理...normal_state ... ["ruck_num", "which_side", "shoot_position", "time_log", "r_group_num", "r_num_of_groups", "r_lamp_num", "r_num_of_lamps", "additional", "delete", "ditance", "x", "y", "color", "LF"]
-
-    
-
-
-
-    # 基準値の初期値
-    # ref_ruck_num = str(normal_states[0:1]["ruck_num"])
-    # ref_which_side = str(normal_states[0:1]["which_side"])
-    # ref_shoot_position = int(normal_states[0:1]["shoot_position"])
+    # 基準値初期化
     ref_ruck_num = "a"
     ref_which_side = "a"
     ref_shoot_position = 0
-    # print("ref_ruck_num：", ref_ruck_num)
-    # print("ref_which_side", ref_which_side)
-    # print("ref_shoot_position", ref_shoot_position)
 
-    y_step=20 #高さ方向のグリッド間隔(単位はピクセル)
-    x_step=20 #幅方向のグリッド間隔(単位はピクセル)
-    
-    for i, row in enumerate(normal_states.itertuples()):
-        if i == 0:   #refの初期化
-            ref_ruck_num = row.ruck_num
-            ref_which_side = row.which_side
-            ref_shoot_position = row.shoot_position
-
-        elif i == len(normal_states.index)-1: #最後の行での処理
-            # 部分のdfを取ってくる処理
-            part_normal_states = normal_states[
-                (normal_states["ruck_num"]==ref_ruck_num) & 
-                (normal_states["which_side"]==ref_which_side) & 
-                (normal_states["shoot_position"]==ref_shoot_position)
-                ]
-            print("part_normal_states\n", part_normal_states)
-            for j, each_add in enumerate(add.itertuples()):
-                # eachの情報を ruck_num, which_side, shoot_position, x_num, y_num, color, FL に分けていれる
-                ruck_num_add, which_side_add, shoot_position_add, time_log_add = each_add.movie.split("_")
-                x_num = each_add.x_num
-                y_num = each_add.y_num
-                color = each_add.color
-                LF = each_add.LF
-                if (ruck_num_add == ref_ruck_num) & (which_side_add == ref_which_side) & (int(shoot_position_add) == ref_shoot_position):
-                    # x_num,y_numからそのセルの中心点(x, y)を計算する
-                    x = x_num * x_step + (x_step/2)
-                    y = y_num * y_step + (y_step/2)
-                    # その(x, y)をnormal_statesのmovie情報に該当する箇所の最初のindexに挿入する、どうせ下で整地されるのでlamp_numは0で統一、本indexがどうなるのかは作業しながら観察
-                    part_normal_states = part_normal_states.append({"ruck_num":ruck_num_add, "which_side":which_side_add, "shoot_position":shoot_position_add, "time_log":time_log_add, "lamp_num":0, "x":x, "y":y, "color":color, "LF":LF}, ignore_index=True)
-                    print("x = {}, y = {}".format(x, y))
-                    print(part_normal_states)
-                else:
-                    pass
-            # part_normal_statesをnew_normal_statesに追加
-            new_normal_states = pd.concat([new_normal_states, part_normal_states])
-            print("new_normal_states\n", new_normal_states)
-
-        else:
-            ruck_num = row.ruck_num
-            which_side = row.which_side
-            shoot_position = row.shoot_position
-
-            if (ruck_num==ref_ruck_num) & (which_side==ref_which_side) & (shoot_position==ref_shoot_position):  #注目しているnormal_statesのある行と基準値refが同じ
-                print(ref_ruck_num, ruck_num)
-                print(ref_which_side, which_side)
-                print(ref_shoot_position, shoot_position)
-                pass  
-            else:
-                # 部分のdfを取ってくる処理
-                part_normal_states = normal_states[(normal_states["ruck_num"]==ref_ruck_num) & (normal_states["which_side"]==ref_which_side) & (normal_states["shoot_position"]==ref_shoot_position)]
-                print("part_normal_states\n", part_normal_states)
-
-                for j, each_add in enumerate(add.itertuples()):
-                    # eachの情報を ruck_num, which_side, shoot_position, x_num, y_num, color, FL に分けていれる
-                    ruck_num_add, which_side_add, shoot_position_add, time_log_add = each_add.movie.split("_")
-                    x_num = each_add.x_num
-                    y_num = each_add.y_num
-                    color = each_add.color
-                    LF = each_add.LF
-                    if (ruck_num_add == ref_ruck_num) & (which_side_add == ref_which_side) & (int(shoot_position_add) == ref_shoot_position):
-                        # x_num,y_numからそのセルの中心点(x, y)を計算する
-                        x = x_num * x_step + (x_step/2)
-                        y = y_num * y_step + (y_step/2)
-                        # その(x, y)をnormal_statesのmovie情報に該当する箇所の最初のindexに挿入する、どうせ下で整地されるのでlamp_numは0で統一、本indexがどうなるのかは作業しながら観察
-                        part_normal_states = part_normal_states.append({"ruck_num":ruck_num_add, "which_side":which_side_add, "shoot_position":shoot_position_add, "time_log":time_log_add, "lamp_num":0, "x":x, "y":y, "color":color, "LF":LF}, ignore_index=True)
-                        print("x = {}, y = {}".format(x, y))
-                        print(part_normal_states)
-                    else:
-                        pass
-                
-                # part_normal_statesをnew_normal_statesに追加
-                new_normal_states = pd.concat([new_normal_states, part_normal_states])
-                print("new_normal_states\n", new_normal_states)
-
-                # ref情報の更新
-                ref_ruck_num = ruck_num
-                ref_which_side = which_side
-                ref_shoot_position = shoot_position
+    grouped_stats = []  #３次元リストから再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
+    # movie単位での切り分け----------------------------------------------------------------
+    for i, ns_each in enumerate(normal_states.itertuples()):
         
+        # normal_statesと形を揃えた新しいdfを作る
+        tmp_ns = pd.DataFrame([[0,0,0,0,0,0,0,0]], columns=[
+            "ruck_num", 
+            "which_side", 
+            "shoot_position", 
+            "time_log", 
+            "x", 
+            "y",
+            "group_num",
+            #"num_of_groups",
+            "lamp_num", 
+            #"num_of_lamps"
+        ])
+
+        if (   
+            (str(ns_each.ruck_num) == str(ref_ruck_num)) & 
+            (str(ns_each.which_side) == str(ref_which_side)) & 
+            (str(ns_each.shoot_position) == str(ref_shoot_position))
+            ):   #各情報が基準と一致している場合、一つ前の要素と同じグループ内なのでパス
+            pass
+        else:  # 基準値と比べて movie_info & group_num が一致しない → 新しいパートなので取得
+            part_movie = normal_states[
+                (normal_states["ruck_num"] == ns_each.ruck_num) & 
+                (normal_states["which_side"] == ns_each.which_side) & 
+                (normal_states["shoot_position"] == ns_each.shoot_position)
+                ]
+
+            #additionalを一つずつ回す
+            for j, add_each in enumerate(additional.itertuples()):
+                print("additional:\n",j, "\n",  additional)
+                add_ruck_num, add_which_side, add_shoot_position, add_time_log, _ = add_each.movie.replace(".mp4", "").split("_")
+                if np.array([
+                        (str(add_ruck_num) == str(part_movie.ruck_num)), 
+                        (str(add_which_side) == str(part_movie.which_side)), 
+                        (str(add_shoot_position) == str(part_movie.shoot_position))
+                    ]).all():
+                    # x_num,y_numからそのセルの中心点(x, y)を計算する
+                    x = add_each.x_num * x_step + (x_step/2)
+                    y = add_each.y_num * y_step + (y_step/2)
+                    add = [
+                        add_ruck_num, #"ruck_num": 
+                        add_which_side, #"which_side":
+                        add_shoot_position, #"shoot_position":
+                        add_time_log, #"time_log":
+                        x, #"x":
+                        y, #"y":
+                        0, #"group_num":
+                        1000 #"lamp_num":
+                    ]
+                    #part_movie_T = part_movie.T
+                    #part_movie_T.insert(0, j, add)
+                    #part_movie = part_movie_T.T
+                    #part_movie = part_movie.append(add, ignore_index=True)
+                    part_movie.loc[0] = add
+                    additional = additional.drop(0, errors='ignore')  #適用したらadditionalDFから削除
+                    additional = additional.reset_index(drop = True)  # インデックス0が消えて先頭が1のままだと次回0を削除できないからインデックスを振り直す
+                    print("---------------------additionalされた")
+                    
+
+
+            # group単位での切り分け----------------------------------------------------------------
+            ref_group_num = 100  #基準値
+            for j, pm_each in enumerate(part_movie.itertuples()):
+                if (str(pm_each.group_num) == str(ref_group_num)):  #各情報が基準と一致している場合、一つ前の要素と同じグループ内なのでパス
+                    pass
+                else:  # 基準値と比べて movie_info & group_num が一致しない → 新しいパートなので取得
+                    part_group = part_movie[part_movie["group_num"] == pm_each.group_num]
+
+                    #deleteを一つずつ回す
+                    for k, del_each in enumerate(delete.itertuples()):
+                        print("delete:\n",j, "\n",  delete)
+                        del_ruck_num, del_which_side, del_shoot_position, _, _ = del_each.movie.replace(".mp4", "").split("_")
+                        # del_each.movie, del_each.group_num, del_each.lamp_numが全て一致するレコードを除いて新たな part_normal_states とする.
+                        if np.array([
+                            (str(del_ruck_num) == str(ns_each.ruck_num)), 
+                            (str(del_which_side) == str(ns_each.which_side)), 
+                            (str(del_shoot_position) == str(ns_each.shoot_position)),
+                            (str(del_each.group_num) == str(ns_each.group_num))
+                            ]).all():
+                            part_group = part_group[part_group["lamp_num"] != del_each.lamp_num]
+                            delete = delete.drop(0, errors='ignore')  #適用したらdeleteDFから削除
+                            delete = delete.reset_index(drop = True)
+                            print("---------------------deleteされた")
+                        else:
+                            pass
+                    #print("part_group:\n", part_group)
+
+                    # part_normal_statesをtmp_nsに追加
+                    tmp_ns = pd.concat([tmp_ns, part_group])
+
+                    #基準値の入れ替え
+                    ref_group_num = pm_each.group_num
+            #--------------------------------------------------------------group単位での切り分け（終）
+
+            #基準値の入れ替え
+            ref_ruck_num = ns_each.ruck_num
+            ref_which_side = ns_each.which_side
+            ref_shoot_position = ns_each.shoot_position
+
+            tmp_ns = tmp_ns.reset_index(drop = True)
+            tmp_ns = tmp_ns.drop(index = 0)
+            tmp_ns = tmp_ns.reset_index(drop = True)
+            tmp_ns = tmp_ns.reindex(columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"])
+
+            #print("tmp_ns:\n", tmp_ns)
+            #----------------------------------------------------------------------------
+            # ここまでで修正を施した
+            # tmp_ns = ["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"]
+            # が完成
+            #----------------------------------------------------------------------------
+
+
+            #グルーピング------------------------------------------------------------
+            def isInThreshold(value, group_min_y, threshold):
+                return (value > group_min_y) and (value < group_min_y + threshold)
+            
+            _tmp_ns = tmp_ns.copy()
+            _tmp_ns = _tmp_ns.values.tolist()
+            tmp = None
+            threshold = 200  #閾値 px
+
+            result_groups = []   #二次元配列 
+            while True:
+                if len(_tmp_ns) == 0:
+                    break
+                tmp = _tmp_ns.pop(0) #pop...指定した値の要素を取得し、元のリストから削除する
+                y = tmp[5]  # 要素番号1＝y
+                group = [tmp]
+                for _tmp in _tmp_ns[:]:
+                    if isInThreshold(_tmp[5], y, threshold):
+                        group.append(_tmp)
+                        _tmp_ns.remove(_tmp)
+                group = sorted(group, key=lambda x: x[4])  # result_groupsを要素ごとにx（要素番号4）でソート
+                result_groups.append(group)
+            
+            #grouped_stats = []  #３次元リストから再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
+            for k, group in enumerate(result_groups):
+                for l, each in enumerate(group):
+                    each.insert(6,str(k))  #group_num
+                    each.insert(7,len(result_groups))  #num_of_groups（人グループを）
+                    each.insert(8,str(l))  #lamp_num
+                    each.insert(9,str(len(group)))  #num_of_groups
+
+                    # 極座標ベクトル
+                    if l == len(group) - 1:
+                        each.insert(10,str(0))  #r
+                        each.insert(11,str(0))  #degree
+                    else:
+                        x = group[l][4]
+                        y = group[l][5]
+                        X = group[l+1][4]
+                        Y = group[l+1][5]
+                        r, degree = getxy_RD(x, y, X, Y)
+                        each.insert(10,str(r))
+                        each.insert(11,str(degree))
+
+                    grouped_stats.append(each)
+            #------------------------------------------------------------グルーピング（終）
+    #--------------------------------------------------------------------------------movie単位での切り分け
+
+
+
+    tmp_ns = pd.DataFrame(grouped_stats, columns=[
+            "ruck_num", 
+            "which_side", 
+            "shoot_position", 
+            "time_log", 
+            "x", 
+            "y",
+            "group_num",
+            "num_of_groups",
+            "lamp_num", 
+            "num_of_lamps", 
+            "r",
+            "degree"
+        ])
+
+    #tmp_ns.to_csv("new_normal_states.csv")
+
+    tmp_ns.to_csv("tmp_ns1.csv")
+
+    #最終的な出力
+    #normal_state：["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "color", "LF"]
+    new_normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0,0]], columns=[
+        "ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "color", "LF"
+        ])
+
+    # tmp_nsをまたmovieごとに切り出してカラー、点滅状態を取得する
+    # tmp_ns から "r", "degree" をはじいて maks_infos を作成（これに"color", "LF"がついて、"r", "degree" を inner_join したものをこのpyファイルの最終出力「new_normal_state」とする.）
+    mask_infos = tmp_ns.reindex(columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"])
+
+    # 基準値初期化
+    ref_ruck_num = "a"
+    ref_which_side = "a"
+    ref_shoot_position = 0
+
+    # movie単位での切り分け----------------------------------------------------------------
+    for i, mi_record in enumerate(mask_infos.itertuples()):
+        if (   
+            (str(mi_record.ruck_num) == str(ref_ruck_num)) & 
+            (str(mi_record.which_side) == str(ref_which_side)) & 
+            (str(mi_record.shoot_position) == str(ref_shoot_position))
+            ):   #各情報が基準と一致している場合、一つ前の要素と同じグループ内なのでパス
+            pass
+        else:  # 基準値と比べて movie_info & group_num が一致しない → 新しいパートなので取得
+            mask_info = mask_infos[
+                (mask_infos["ruck_num"] == mi_record.ruck_num) & 
+                (mask_infos["which_side"] == mi_record.which_side) & 
+                (mask_infos["shoot_position"] == mi_record.shoot_position)
+                ]
+
+            print("mask_info:\n", mask_info)
+
+            # 該当のmovieをキャプチャする
+            for j, movie in enumerate(files_list):
+                _ruck_num, _which_side, _shoot_position, _time_log, _cam_num = movie.replace(".mp4", "").split("_")
+                movie_info = [_ruck_num, _which_side, _shoot_position, _time_log, _cam_num]
+                if (_ruck_num == mi_record.ruck_num) & (_which_side == mi_record.which_side) & (int(_shoot_position) == int(mi_record.shoot_position)):
+                    cap =  cv2.VideoCapture(path + movie)
+                    if cap.isOpened()==False:
+                        print("[{}]：read error.".format(movie))
+                    else:
+                        print("[{}]：read success.".format(movie))
+
+                        print("start_processing----------")
+                        print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(_ruck_num, _which_side, _shoot_position, _time_log))
+                        print("--------------------------")
+
+                        frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
+                        undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
+                        sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
+                        lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)  #ランプ画像
+                        new_normal_state = module.get_lamp_state.get_lamp_state(lamp_imgs, mask_info, param)  #状態
+
+                        #gif画像生成
+                        module.make_gif.make_gif(undistort_frames, new_normal_state, movie_info, param, "mask_gif_rev")
+
+                        #ループ外のnormal_statesに追加していく、最後にcsv出力
+                        new_normal_states = pd.concat([new_normal_states, new_normal_state], axis=0)
+
+                        #基準値の入れ替え
+                        ref_ruck_num = mi_record.ruck_num
+                        ref_which_side = mi_record.which_side
+                        ref_shoot_position = mi_record.shoot_position
+
+    #--------------------------------------------------------------------------------movie単位での切り分け
+
+
     new_normal_states = new_normal_states.reset_index(drop = True)
     new_normal_states = new_normal_states.drop(index = 0)
     new_normal_states = new_normal_states.reset_index(drop = True)
 
-    # インデックスを振り直す
-    #new_normal_states = new_normal_states.reset_index(drop = True)
+    #new_normal_states と tmp_ns を outer_joinして r, degree を追加
+    tmp_ns.to_csv("tmp_ns2.csv") #normal_statesのcsv出力
+    new_normal_states.to_csv("uncomp.csv")
 
-    #print(normal_states)
-    # normal_state.csvに再保存
-    print(new_normal_states)
-    new_normal_states.to_csv("normal_states.csv")
+
+    tmp_ns = tmp_ns.reindex(columns=["r", "degree"])
+    new_normal_states = pd.concat([new_normal_states, tmp_ns], axis=1)
+
+    new_normal_states = new_normal_states.reindex(columns=["ruck_num", "which_side", "shoot_position", "time_log", "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y", "color", "LF", "r", "degree"])
+    new_normal_states.to_csv("new_normal_states.csv") #normal_statesのcsv出力
+    
     """
+
+
+
+
+
+
+
+
+
+
+#------------------------------
+# concatがうまくいっていない
+# gifに情報が載ってない
+# additionalが働いたグループだけなぜかランプが２重に保存される. 未対応
+#------------------------------
+
 
 if __name__ == "__main__":
     main()

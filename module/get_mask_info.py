@@ -28,62 +28,64 @@ from sklearn.cluster import KMeans
 
 
 
-
-#sum_imgをフィルタリングしてマスク情報を取得する関数
+"""
+sum_imgをフィルタリングしてマスク情報を取得する関数
+"""
 #input: sum_img
 #output: mask_info...["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
+
 def get_mask_info(sum_img, movie_info, param):
-    #オブジェクト化-----
+    #オブジェクト化-----------------------------------------------------------------------------------------
     nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(sum_img)
     #nlabels...ラベルの数（黒い領域も含む）
     #labels...ピクセルごとのラベリング結果（白いところが1、黒いところが0になった画像配列）
     #stats...オブジェクトのバウンディングボックス（開始点の x 座標、開始点の y 座標、幅、高さ、オブジェクトの総ピクセル数））
     #centroids...オブジェクトの重心
-    #----------
+    #-----------------------------------------------------------------------------------------------------
 
     #statsをdf化
     stats_df = pd.DataFrame(stats, columns=["x", "y", "w", "h", "pixel"])
 
     #フィルター -----------------------------------
-    delete_index = []
-    thick = param["get_mask_info"]["remove_frame_thick"] #lamp_imgとして切り取るときの一辺=25...で設定していたがノイズ除去の目的で大きめに取る
+    delete_index = []  #フィルターを通過できなかったオブジェクトインデックスを格納
+    thick = param["get_mask_info"]["remove_frame_thick"]  #画像から縁を切り取る時の厚さ
     for row in stats_df.itertuples():
-        #フィルター１　フレームの縁からtmpだけ離れた範囲にあるか否か.
+        #フィルター１：thickよりも内側にあるか.
         #lamp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
         #また撮影ポジションによる上下左右のダブり問題に関してもここの調整で対応できる.　これは重要なので後で調整方法について検討
         if (row.x < thick or row.x > param["frame_w"]-thick or row.y < thick or row.y > param["frame_h"]-thick):
             delete_index.append(row.Index)
             continue
-        #フィルター２　ピクセル数
+        """
+        #フィルター２：ピクセル数
         if (row.pixel <= param["get_mask_info"]["filter_n_pixels"][0] or row.pixel >= param["get_mask_info"]["filter_n_pixels"][1]):
             delete_index.append(row.Index)
             continue
-        #フィルター３　幅、高さ
+        """
+        #フィルター３：幅、高さ
         if (row.w <= param["get_mask_info"]["filter_w"][0] or row.w >= param["get_mask_info"]["filter_w"][1]
             or row.h <= param["get_mask_info"]["filter_h"][0] or row.h >= param["get_mask_info"]["filter_h"][1]):
             delete_index.append(row.Index)
             continue
+
+    stats_df = stats_df.drop(index=delete_index)
     #--------------------------------------------
 
-    #print("delete_index", delete_index)
-    stats_df = stats_df.drop(index=delete_index)
-    #stats_df = stats_df.drop(index=0) #0行目には背景情報が入るだけなのでいらない
 
     #いらない情報[w, h, pixel]を削除
     stats_df = stats_df.drop(columns=["w", "h", "pixel"])  # → stats_df...["x", "y"]
 
 
-
-    # グループに分けていく--------------
-    def isInThreshold(value, center, threshold):
-        return (value < center + threshold) and (center - threshold < value)
+    # グルーピング--------------
+    def isInThreshold(value, group_min_y, threshold):
+        return (value > group_min_y) and (value < group_min_y + threshold)
     
     _stats_df = stats_df.copy()
-    _stats_df = _stats_df.values.tolist()
+    _stats_df = _stats_df.values.tolist() #リストに変換
     tmp = None
-    threshold = 100  #閾値 px
+    threshold = 200   #閾値 px
 
-    result_groups = []   #二次元配列 
+    result_groups = []
     while True:
         if len(_stats_df) == 0:
             break
@@ -100,10 +102,10 @@ def get_mask_info(sum_img, movie_info, param):
     grouped_stats = []  #再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
     for i, group in enumerate(result_groups):
         for j, each in enumerate(group):
-            each.insert(3,str(i)) #グループナンバー
-            each.insert(4,str(len(result_groups))) #グループ数
-            each.insert(5,str(j)) #グループの中でのランプナンバー
-            each.insert(6,str(len(group))) #ランプ数
+            each.insert(3,int(i)) #グループナンバー
+            each.insert(4,int(len(result_groups))) #グループ数
+            each.insert(5,int(j)) #グループの中でのランプナンバー
+            each.insert(6,int(len(group))) #ランプ数
             grouped_stats.append(each)
 
     # 再度stats_dfとしてDF化

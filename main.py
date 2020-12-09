@@ -56,10 +56,27 @@ import json
 
 def main():
 
+    # make_mask_and_normalと同じようにstateを取得（current_states）
+    # その際r, degreeを取得
+    # current_statesを動画単位、さらにグループ単位でブロック分けする（c-gブロック）
+    # 同じグループブロックをnormal_statesから抜き出す（n-gブロック）
+    
+    # n-gブロックの0番目から範囲をとり、その中にc-gブロックの0番目が入っていれば、それを0番確定する. 入っていなければそのグループは終了.
+    # c-gブロックのL01とdegree01が、n-gブロックのL01+-30, degree01+=10の範囲に入っていればそれを1番と確定する.
+    # 入っていない場合、L01を確認.
+    # n-gブロックのL01よりも短いのならそれはノイズであり、その先に1番ランプがあるはず。１番を削除してreset_index、再びL01とdegree01をとる
+    # n-gブロックのL01よりも長いのなら、１番ランプは消灯エラーor認識漏れで拾えていない。c-g0番ランプとn-g０番ランプのズレを取得し、それをn-g１番ランプに適用したものをc-g１番ランプとし、カラーと点滅状態を取得する.
+    # そこでランプが取得できたならそれをランプ情報とし、できなければ消灯エラーとする
+    # これをc-gの最後で繰り返し、終わったら次のc-gに移る
+    #　最終的にc-gのランプが全て特定されるはずなので、カラーと点滅情報の比較でresultを出す
+
+
+
     #現在時刻取得
     now = datetime.datetime.now()
     #resultファイル名フォーマット作成
     filename = 'result_log/result_' + now.strftime('%Y%m%d_%H%M%S') + '.csv'
+
 
 
     #当面の仕様では全動画はinputに入るので、まずは全てリスト取得
@@ -110,30 +127,27 @@ def main():
     #----------動画ファイルのソート処理
 
 
-    #正常状態csvのDataFrameでの読み込み
-    normal_states = pd.read_csv("normal_states.csv", index_col=0)
-    # get_lamp_imgs, get_lamp_state を make_mask_and_nomaly.py と共有するために引数normal_stateの形を整える（つまりmask_infoにする）
-    mask_infos = normal_states.drop(columns=["color", "LF", "lamp_num"])
-    
-    #グローバルリスト（ここに諸情報を追加していき、最終的なアウトプットとする）
-    current_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0,0,0]], columns=[
-        "ruck_num", 
-        "which_side", 
-        "shoot_position", 
-        "time_log",
-        "group_num",
-        "lamp_num",
-        "normal_num_of_lamps",
-        "current_num_of_lamps",  #グループ内の
-        "x", 
-        "y", 
-        "gap",  #グループの
-        "normal_color", 
-        "normal_LF", 
-        "current_color", 
-        "current_LF"
-        ])
 
+
+    #正常状態csvのDataFrameでの読み込み
+    normal_states = pd.read_csv("new_normal_states.csv", index_col=0)
+    # --normal_states----------------------------------------
+    # ruck_num	which_side, shoot_position, time_log, 
+    # group_num	num_of_groups, lamp_num, num_of_lamps, x, y, 
+    # color, LF, r, degree
+    #--------------------------------------------------------
+    # # get_lamp_imgs, get_lamp_state を make_mask_and_nomaly.py と共有するために引数normal_stateの形を整える（つまりmask_infoにする）
+    # mask_infos = normal_states.drop(columns=["color", "LF", "lamp_num"])
+    
+
+
+    #グローバルリスト（ここに諸情報を追加していき、最終的なアウトプットとする）
+    current_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0,0,0,0]], columns=[
+        "ruck_num", "which_side", "shoot_position", "time_log",
+        "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y", 
+        "normal_color", "normal_LF", 
+        "current_color", "current_LF"
+        ])
 
 
 
@@ -146,6 +160,16 @@ def main():
         else:
             print("[{}]：read success.".format(movie))
 
+
+            # ------------------------------------------------------------------------------------------------------------------------
+
+            # まずcurrentのこのmovieの
+            # ------------------------------------------------------
+            # ruck_num	which_side, shoot_position, time_log, 
+            # group_num	num_of_groups, lamp_num, num_of_lamps, x, y
+            # ------------------------------------------------------
+            # だけ欲しいので make_mask_andnormal 同様の処理を行う
+
             #動画名から各種情報を取得
             ruck_num, which_side, shoot_position, time_log, cam_num = movie.replace(".mp4", "").split("_")  #ラック番号, ラックの左右情報, 撮影位置番号, 撮影date
             movie_info = [ruck_num, which_side, shoot_position, time_log, cam_num]
@@ -153,127 +177,92 @@ def main():
             print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
             print("--------------------------")
 
-            #mask_infosからこの動画での対象となるmask_infoを取得
-            mask_info = mask_infos.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
-            #mask_infosからこの動画での対象となるmask_infoを取得
-            normal_state = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
-
             frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
-            undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
-            lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)
-            current_state = module.get_lamp_state.get_lamp_state(lamp_imgs, mask_info, param)
-            #print(current_state)
+            undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #歪曲補正
+            sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像作成
+            cur_obj_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)
+            cur_obj_info = cur_obj_info.reindex(columns=[
+                "ruck_num", "which_side", "shoot_position", "time_log", 
+                "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y"
+                ])
+            # --cur_obj_info-----------------------------------------
+            # ruck_num, which_side, shoot_position, time_log,
+            # group_num, num_of_groups, lamp_num, num_of_lamps, x, y
+            # -------------------------------------------------------
 
-            #カラム名の変更
-            normal_state = normal_state.rename(columns={'color': 'normal_color', 'LF': 'normal_LF'})
-            current_state = current_state.rename(columns={'color': 'current_color', 'LF': 'current_LF'})
-            #normal_state に current_state の current_color, current_LF をconcat（index）する
-            normal_state = normal_state.assign(current_color = current_state["current_color"])
-            normal_state = normal_state.assign(current_LF = current_state["current_LF"])
+            # ------------------------------------------------------------------------------------------------------------------------
+            # ------------------------------------------------------------------------------------------------------------------------
 
-            #ループ外の current_states に追加していく
-            current_states = pd.concat([current_states, normal_state], axis=0) 
-            #current_states = ["ruck_num", "which_side", "shoot_position", "time_log", "lamp_num", "x", "y", "normal_color", "normal_LF", "current_color", "current_LF"]
-            #print(current_states)
+            # normal_states からこの動画での対象となる part_movie_ns を取得
+            part_movie_ns = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
+            # --part_movie_ns------------------------------------------
+            # ruck_num, which_side, shoot_position, time_log, 
+            # group_num, num_of_groups, lamp_num, num_of_lamps, x, y, 
+            # color, LF, r, degree
+            # ---------------------------------------------------------
 
-            #gif画像生成
-            module.make_gif.make_gif(undistort_frames, normal_state, movie_info, param)
-            """
-            #gif画像生成---------------
-            x_step = param["gif_grid_x"] #幅方向のグリッド間隔(単位はピクセル)
-            y_step = param["gif_grid_y"] #高さ方向のグリッド間隔(単位はピクセル)
+            # cur_obj_info["num_of_groups"] と part_movie_ns["num_of_groups"] の一致
+            if int(cur_obj_info.iat[0,5]) != int(part_movie_ns.iat[0,5]):
+                print("--------------------------------------------------------------------------------")
+                print("参照情報のグループ数：", part_movie_ns.iat[0,5])
+                print("取得情報のグループ数：", cur_obj_info.iat[0,5])
+                print("この撮影ポイントでのグループ数が一致しません. この撮影ポイントの検知をスキップします.")
+                print("--------------------------------------------------------------------------------")
+                # part_movie_ns に resultカラム をあとで追加するので、ここでは result に「num_of_groups Error」といれる.
+            else:
+                print("--------------------------------------------------------------------------------")
+                print("参照情報のグループ数：", part_movie_ns.iat[0,5])
+                print("取得情報のグループ数：", cur_obj_info.iat[0,5])
+                print("グループ数の一致を確認. グループごとの処理に移行します.")
+                print("--------------------------------------------------------------------------------")
+                for i in range(int(cur_obj_info.iat[0,5])):
+                    # cur_obj_info, part_movie_nsのそれぞれグループごとに切り分ける
+                    cur_obj_info_group = cur_obj_info.query('group_num == {}'.format(i))
+                    part_group_ns = part_movie_ns.query('group_num == {}'.format(i))
+                    # DFだと操作が難しそうなので一度リストに戻す...
+                    cur_obj_info_group = cur_obj_info_group.values.tolist()
+                    part_group_ns = part_group_ns.values.tolist()
+                    print("cur_obj_info_group:\n", cur_obj_info_group)
+                    print("part_group_ns:\n", part_group_ns)
+                    # 0番オブジェクトの特定
+                    zero_x = part_group_ns[0][8]
+                    zero_y = part_group_ns[0][9]
+                    side =  100 # 範囲とする正方形の一辺
+                    tmp = side/2
+                    for i, each in enumerate(cur_obj_info):
+                        obj_x = cur_obj_info_group[i][8]
+                        obj_y = cur_obj_info_group[i][9]
+                        if (obj_x >= zero_x - tmp) & (obj_x <= zero_x + tmp) & (obj_y >= zero_y - tmp) & (obj_y <= zero_y + tmp):
+                            # i番オブジェクトを0番ランプに確定する。
+                            # ０番ランプより前のレコードを cur_obj_info から削除する.
+                            if i > 0:
+                                del cur_obj_info_group[0:i]
+                            break
+                        # もし該当するものが最後まで現れなかったとき、このグループの０番は認識されていなかった. このグループの処理をスキップする.
+                        if i == len(cur_obj_info_group)-1 :
+                            print("--------------------------------------------------------------------------------")
+                            print("０番ランプが何らかの要因でキャッチできていません. このグループの処理をスキップします")
+                            print("--------------------------------------------------------------------------------")
+                            #グループの処理を中断して次のグループに移るようにコードを書く
+                    #print("cur_obj_info:\n", cur_obj_info_group)
 
-            for j, frame in enumerate(undistort_frames):
-                img_y,img_x = frame.shape[:2]  #オブジェクトimgのshapeメソッドの1つ目の戻り値(画像の高さ)をimg_yに、2つ目の戻り値(画像の幅)をimg_xに
-                frame[y_step:img_y:y_step, :, :] = (0, 0, 255)  #横線を引く... y_stepからimg_yの手前までy_stepおきに横線を引く (0, 0, 255)...青
-                frame[:, x_step:img_x:x_step, :] = (0, 0, 255)  #縦線を引く... x_stepからimg_xの手前までx_stepおきに縦線を引く (0, 0, 255)
-                # 見やすくするため5本に一本色を変える
-                frame[y_step:img_y:y_step*5, :, :] = (255, 0, 0)
-                frame[:, x_step:img_x:x_step*5, :] = (255, 0, 0)
-
-                # 認識外の範囲を視覚化
-                remove_frame_thick = param["get_mask_info"]["remove_frame_thick"]
-                x1 = remove_frame_thick
-                x2 = param["frame_w"] - remove_frame_thick
-                y1 = remove_frame_thick
-                y2 = param["frame_h"] - remove_frame_thick
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=2)
-
-                img_side = param["get_lamp_imgs"]["img_side"]
-                for row in normal_state.itertuples():
-                    #ランプ情報をputText
-                    cv2.putText(
-                        img = frame, 
-                        text = '{}:{}:{}'.format(str(row.Index), str(row.current_color)[0], str(row.current_LF)), 
-                        org = (int(row.x), int(row.y)), 
-                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
-                        fontScale = 1,
-                        color = (255, 255, 255), 
-                        thickness = 2,
-                        lineType = cv2.LINE_AA
-                        )
-                    #ランプ毎にカバーしているマスク範囲をフレームで視覚化
-                    x1 = int(row.x - (img_side/2))
-                    x2 = int(row.x + (img_side/2))
-                    y1 = int(row.y - (img_side/2))
-                    y2 = int(row.y + (img_side/2))
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=1)
                     
-                #目盛り（縦方向）
-                for i in range(int(1200/y_step)):
-                    cv2.putText(
-                        img = frame, 
-                        text = str(i),
-                        org = (int(0), int(y_step + y_step * i)),
-                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
-                        fontScale = 1,
-                        color = (255, 255, 255), 
-                        thickness = 1,
-                        lineType = cv2.LINE_AA
-                        )
-                #目盛り（横方向）
-                for i in range(int(1600/x_step)):
-                    cv2.putText(
-                        img = frame, 
-                        text = str(i),
-                        org = (int(x_step * i), int(y_step)),
-                        fontFace =  cv2.FONT_HERSHEY_PLAIN, 
-                        fontScale = 1,
-                        color = (255, 255, 255), 
-                        thickness = 1,
-                        lineType = cv2.LINE_AA
-                        )
-
-                    undistort_frames[j] = frame
-
-            undistort_frames = list(undistort_frames)  #gifにするのに標準リスト化
-            clip = ImageSequenceClip(undistort_frames, fps=2)
-            clip.write_gif('mask_gif_main/{}_{}_{}_{}.gif'.format(ruck_num, which_side, shoot_position, time_log))
-            #---------------gif画像生成
-            """
-
-    #current_statesの先頭の不要な行を削除し、再度indexを振り直す
-    current_states = current_states.reset_index(drop = True)
-    current_states = current_states.drop(index = 0)
-    current_states = current_states.reset_index(drop = True)
+                    
+                        
 
 
-    #異常判定処理
-    current_states["result"] = "a"  #新しいカラム[result]を定義&文字列で初期化
-    print(current_states)
-    print(current_states.iat[i, 11])
-    for i, row in enumerate(current_states.itertuples()):
-        if row.normal_color == row.current_color and row.normal_LF == row.current_LF:
-            # current_states[i:i+1]["result"] = "-"  #←なぜかこの書き方だと値を更新できない、ので.iatで指定する
-            current_states.iat[i, 11] = "N"
-        else:
-            # current_states[i:i+1]["result"] = "error"
-            current_states.iat[i, 11] = "Error"
-    print(current_states)
+            # ------------------------------------------------------------------------------------------------------------------------
 
-    #csv出力
-    current_states.to_csv(filename)
+                
+                
+                
 
+                
+
+
+
+
+                        
 
 if __name__ == "__main__":
     main()
