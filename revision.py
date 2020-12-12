@@ -132,7 +132,7 @@ def main():
         return r, degree
 
 
-    # rev_part_movie_ns を順次追加していくDF
+    # rev_part_ns_movie を順次追加していくDF
     new_normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0,0,0,0,0,0,0]], columns=[
         "ruck_num", "which_side", "shoot_position", "time_log", 
         "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y",
@@ -157,19 +157,20 @@ def main():
             print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・time_log：{}".format(ruck_num, which_side, shoot_position, time_log))
             print("--------------------------")
 
-            # additional, delete を修正した part_group_ns を順次追加していくDF
-            rev_part_movie_ns = pd.DataFrame([[0,0,0,0,0,0,0,0,0]], columns=[
+            # additional, delete を修正した part_ns_group を順次追加していくDF
+            rev_part_ns_movie = pd.DataFrame([[0,0,0,0,0,0,0,0,0]], columns=[
                 "ruck_num", "which_side", "shoot_position", "time_log", 
                 "group_num","num_of_groups","lamp_num", "x", "y"
                 ])
 
 
             # normal_states を movie毎に分割
-            part_movie_ns = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
-            # --part_movie_ns---------------------------------
+            part_ns_movie = normal_states.query('ruck_num == "{}" & which_side == "{}" & shoot_position == {}'.format(ruck_num, which_side, shoot_position))
+            # --part_ns_movie---------------------------------
             # ruck_num	which_side, shoot_position, time_log, 
             # group_num, num_of_groups, lamp_num, x, y
             #-------------------------------------------------
+
 
 
             # additional
@@ -179,45 +180,49 @@ def main():
                 #print("additional:\n",j, "\n",  additional)
                 add_ruck_num, add_which_side, add_shoot_position, add_time_log, _ = add_each.movie.replace(".mp4", "").split("_")
                 if np.array([
-                        (str(add_ruck_num) == str(ruck_num)), 
-                        (str(add_which_side) == str(which_side)), 
-                        (int(add_shoot_position) == int(shoot_position))
+                    (str(add_ruck_num) == str(ruck_num)), 
+                    (str(add_which_side) == str(which_side)), 
+                    (int(add_shoot_position) == int(shoot_position))
                     ]).all():
                     # x_num,y_numからそのセルの中心点(x, y)を計算する
-                    x = add_each.x_num * x_step + (x_step/2)
-                    y = add_each.y_num * y_step + (y_step/2)
+                    add_x = add_each.x_num * x_step + (x_step/2)
+                    add_y = add_each.y_num * y_step + (y_step/2)
                     add = [
                         add_ruck_num, #"ruck_num": 
                         add_which_side, #"which_side":
                         add_shoot_position, #"shoot_position":
                         add_time_log, #"time_log":
-                        x, #"x":
-                        y, #"y":
                         0, #"group_num":
-                        1000 #"lamp_num":
+                        part_ns_movie.iat[0,5], #"num_of_groups":
+                        10000, #"lamp_num":
+                        add_x, #"x":
+                        add_y, #"y":
                     ]
                     #part_movie_T = part_movie.T
                     #part_movie_T.insert(0, j, add)
                     #part_movie = part_movie_T.T
                     #part_movie = part_movie.append(add, ignore_index=True)
-                    part_movie_ns.loc[0] = add
+                    part_ns_movie.loc[j+10000] = add   #適当なインデックスに追加（あとで整地されるからここでは追加さえできれば良い）
+                    print("{}_part_ns_movie\n".format(j), part_ns_movie)
                     additional = additional.drop(0, errors='ignore')  #適用したらadditionalDFから削除
                     additional = additional.reset_index(drop = True)  # インデックス0が消えて先頭が1のままだと次回0を削除できないからインデックスを振り直す
+                    print("{}_additional".format(j), additional)
                     print("additional...")
                     print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・x：{}\n・y：{}\nを追加".format(ruck_num, which_side, shoot_position, x, y))
 
 
-            # part_movie_ns を group毎に分割
-            for j in range(int(part_movie_ns.iat[0, 5])):  #適当数繰り返す
-                part_group_ns = part_movie_ns.query('group_num == {}'.format(j))
-                # --part_group_ns---------------------------------
+
+            # part_ns_movie を group毎に分割
+            for j in range(int(part_ns_movie.iat[0, 5])):  #適当数繰り返す
+                part_ns_group = part_ns_movie.query('group_num == {}'.format(j))
+                # --part_ns_group---------------------------------
                 # ruck_num	which_side, shoot_position, time_log, 
                 # group_num, num_of_groups, lamp_num, x, y
                 # -------------------------------------------------
 
                 # # DFだと操作が難しそうなので一度リストに戻す...
-                # part_group_ns = part_group_ns.values.tolist()
-                # print("part_group_ns:\n", part_group_ns)
+                # part_ns_group = part_ns_group.values.tolist()
+                # print("part_ns_group:\n", part_ns_group)
                 #delete
                 for k, del_each in enumerate(delete.itertuples()):
                     #print("delete:\n",j, "\n",  delete)
@@ -226,52 +231,53 @@ def main():
                         (str(del_ruck_num) == str(ruck_num)), 
                         (str(del_which_side) == str(which_side)), 
                         (int(del_shoot_position) == int(shoot_position)),
-                        (int(del_each.group_num) == int(part_group_ns.iat[0,4]))
+                        (int(del_each.group_num) == int(part_ns_group.iat[0,4]))
                         ]).all():
                         # movie情報 & group_num & lamp_num が一致しないものだけ取得して再代入
-                        part_group_ns = part_group_ns[part_group_ns["lamp_num"] != del_each.lamp_num]
+                        part_ns_group = part_ns_group[part_ns_group["lamp_num"] != del_each.lamp_num]
                         delete = delete.drop(0, errors='ignore')  #適用したらdeleteDFから削除
                         delete = delete.reset_index(drop = True)
                         print("delete...")
                         print("・ruck_num：{}\n・which_side：{}\n・shoot_position：{}\n・group_num：{}\n・lamp_num：{}\nを削除".format(ruck_num, which_side, shoot_position, del_each.group_num, del_each.lamp_num))
 
-                # part_group_ns を rev_part_movie_ns にconcat
-                rev_part_movie_ns = pd.concat([rev_part_movie_ns, part_group_ns])
-                # --rev_part_movie_ns-----------------------------
+                # part_ns_group を rev_part_ns_movie にconcat
+                rev_part_ns_movie = pd.concat([rev_part_ns_movie, part_ns_group])
+                # --rev_part_ns_movie-----------------------------
                 # ruck_num, which_side, shoot_position, time_log, 
                 # group_num, num_of_groups, lamp_num, x, y
                 #-------------------------------------------------
 
-            # rev_part_movie_ns を rev_ns にconcat
-            rev_part_movie_ns = rev_part_movie_ns.reset_index(drop = True)
-            rev_part_movie_ns = rev_part_movie_ns.drop(index = 0)
-            rev_part_movie_ns = rev_part_movie_ns.reset_index(drop = True)
+            # rev_part_ns_movie を rev_ns にconcat
+            rev_part_ns_movie = rev_part_ns_movie.reset_index(drop = True)
+            rev_part_ns_movie = rev_part_ns_movie.drop(index = 0)
+            rev_part_ns_movie = rev_part_ns_movie.reset_index(drop = True)
 
             print("------------------------------------")
 
+
             #グルーピング & 極座標
             def isInThreshold(value, group_min_y, threshold):
-                return (value > group_min_y) and (value < group_min_y + threshold)
+                return (value >= group_min_y) and (value < group_min_y + threshold)
             
-            _rev_part_movie_ns = rev_part_movie_ns.copy()
-            _rev_part_movie_ns = _rev_part_movie_ns.values.tolist()  #一度リストに変換
-            # make_mask_and_normal の時点で整地されており、このままではグルーピングのルールが異なるため、一度 _rev_part_movie_ns の　"y" で再びソートする
-            _rev_part_movie_ns = sorted(_rev_part_movie_ns, key=operator.itemgetter(8))  #8..."y"
+            _rev_part_ns_movie = rev_part_ns_movie.copy()
+            _rev_part_ns_movie = _rev_part_ns_movie.values.tolist()  #一度リストに変換
+            # make_mask_and_normal の時点で整地されており、このままではグルーピングのルールが異なるため、一度 _rev_part_ns_movie の　"y" で再びソートする
+            _rev_part_ns_movie = sorted(_rev_part_ns_movie, key=operator.itemgetter(8))  #8..."y"
 
             tmp = None
             threshold = 200  #閾値 px
 
             result_groups = []  #３次元配列 [group0(2次元), group1, group2, ...] 
             while True:
-                if len(_rev_part_movie_ns) == 0:
+                if len(_rev_part_ns_movie) == 0:
                     break
-                tmp = _rev_part_movie_ns.pop(0) #pop...指定した値の要素を取得し、元のリストから削除する
+                tmp = _rev_part_ns_movie.pop(0) #pop...指定した値の要素を取得し、元のリストから削除する
                 y = tmp[8]
                 group = [tmp]
-                for _tmp in _rev_part_movie_ns[:]:
+                for _tmp in _rev_part_ns_movie[:]:
                     if isInThreshold(int(_tmp[8]), int(y), int(threshold)):
                         group.append(_tmp)
-                        _rev_part_movie_ns.remove(_tmp)
+                        _rev_part_ns_movie.remove(_tmp)
                 group = sorted(group, key=operator.itemgetter(7))  # result_groupsを要素ごとに x でソート
                 result_groups.append(group)
             #print(result_groups)
@@ -292,13 +298,9 @@ def main():
                         each.insert(11, 0)  #degree
                     else:
                         x = group[l][8]
-                        print("x", x)
                         y = group[l][9]
-                        print("y",y)
                         X = group[l+1][7]
-                        print("X",X)
                         Y = group[l+1][8]
-                        print("Y",Y)
                         r, degree = getxy_RD(x, y, X, Y)
                         each.insert(10,str(r))
                         each.insert(11,str(degree))
@@ -312,7 +314,7 @@ def main():
             #---------------------------------------------------------
 
             # grouped_stats を再びDF化
-            rev_part_movie_ns = pd.DataFrame(grouped_stats, columns=[
+            rev_part_ns_movie = pd.DataFrame(grouped_stats, columns=[
                 "ruck_num", "which_side", "shoot_position", "time_log", 
                 "group_num", "num_of_groups", "lamp_num", "num_of_lamps",  "x", "y",
                 "r", "degree"
@@ -328,7 +330,7 @@ def main():
             # ruck_num, which_side, shoot_position, time_log,
             # group_num, num_of_groups, lamp_num, num_of_lamps, x, y
             # -------------------------------------------------------
-            mask_info = rev_part_movie_ns.reindex(columns=[
+            mask_info = rev_part_ns_movie.reindex(columns=[
                 "ruck_num", "which_side", "shoot_position", "time_log", 
                 "group_num", "num_of_groups", "lamp_num", "num_of_lamps", "x", "y"
                 ])
@@ -338,7 +340,7 @@ def main():
             #gif画像生成
             module.make_gif.make_gif(undistort_frames, rev_ns, movie_info, param, "mask_gif_rev")
 
-            # rev_part_movie_ns と rev_ns をいい感じにconcatして
+            # rev_part_ns_movie と rev_ns をいい感じにconcatして
             # new_normal_state --------------------------------------
             # ruck_num, which_side, shoot_position, time_log,
             # group_num, num_of_groups, lamp_num, num_of_lamps, x, y,
@@ -346,9 +348,9 @@ def main():
             # -------------------------------------------------------
             # に整える.
             rev_ns = rev_ns.reindex(columns=["color", "LF"])
-            new_normal_state = pd.concat([rev_part_movie_ns, rev_ns], axis=1)
+            new_normal_state = pd.concat([rev_part_ns_movie, rev_ns], axis=1)
             
-            # rev_part_movie_ns を rev_ns にconcat
+            # rev_part_ns_movie を rev_ns にconcat
             new_normal_states = pd.concat([new_normal_states, new_normal_state], axis=0)
             
             

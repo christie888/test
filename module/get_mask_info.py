@@ -25,6 +25,7 @@ import csv
 import sklearn 
 from sklearn.cluster import KMeans 
 
+import operator
 
 
 
@@ -78,14 +79,19 @@ def get_mask_info(sum_img, movie_info, param):
 
     # グルーピング--------------
     def isInThreshold(value, group_min_y, threshold):
-        return (value > group_min_y) and (value < group_min_y + threshold)
+        return (value >= group_min_y) and (value < group_min_y + threshold)
     
     _stats_df = stats_df.copy()
     _stats_df = _stats_df.values.tolist() #リストに変換
+    
+    #オブジェクトの番号振りはy順だと思っていたが単純にそういうわけでもないらしいので自分でy順に直す
+    _stats_df = sorted(_stats_df, key=operator.itemgetter(1))  #1..."y"
+
     tmp = None
     threshold = 200   #閾値 px
 
     result_groups = []
+    i = 0
     while True:
         if len(_stats_df) == 0:
             break
@@ -98,6 +104,7 @@ def get_mask_info(sum_img, movie_info, param):
                 _stats_df.remove(_tmp)
         group = sorted(group)  # result_groupsを要素ごとにx（要素番号0）でソート
         result_groups.append(group)
+        i = i+1
     
     grouped_stats = []  #再び２次元リストに戻す. その際所属グループのナンバーとランプナンバーを要素に入れこむ.
     for i, group in enumerate(result_groups):

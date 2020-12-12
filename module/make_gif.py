@@ -72,6 +72,17 @@ def make_gif(undistort_frames, normal_state, movie_info, param, gif_dir_name):
         
         img_side = param["get_lamp_imgs"]["img_side"]
         for row in normal_state.itertuples():
+            cv2.putText(
+                img = frame, 
+                text = '{}:{}:{}'.format(str(row.lamp_num), str(row.color)[0], str(row.LF)), 
+                org = (int(row.x), int(row.y)), 
+                fontFace =  cv2.FONT_HERSHEY_PLAIN, 
+                fontScale = 1,
+                color = (255, 255, 255), 
+                thickness = 2,
+                lineType = cv2.LINE_AA
+                )
+            """
             #ランプ情報をputText（呼び出しもとファイルで処理を分ける）
             if (inspect.stack()[1].filename == "make_mask_and_normal.py") or (inspect.stack()[1].filename == "revision.py") :
                 cv2.putText(
@@ -95,6 +106,7 @@ def make_gif(undistort_frames, normal_state, movie_info, param, gif_dir_name):
                     thickness = 2,
                     lineType = cv2.LINE_AA
                     )
+            """
             #ランプ毎にカバーしているマスク範囲をフレームで視覚化
             x1 = int(row.x - (img_side/2))
             x2 = int(row.x + (img_side/2))

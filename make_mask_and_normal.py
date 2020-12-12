@@ -121,14 +121,9 @@ def main():
     # mask_infos = pd.DataFrame([[0,0,0,0,0,0]], columns=["ruck_num", "which_side", "shoot_position", "time_log", "x", "y"])
     # print(mask_infos)
     normal_states = pd.DataFrame([[0,0,0,0,0,0,0,0]], columns=[
-        "ruck_num", 
-        "which_side", 
-        "shoot_position", 
-        "time_log", 
-        "x", 
-        "y", 
-        "color", 
-        "LF"
+        "ruck_num", "which_side", "shoot_position", "time_log", 
+        "x", "y", 
+        "color", "LF"
         ])
 
 
@@ -156,7 +151,7 @@ def main():
             frames = module.cut_frame.cut_frame(cap, param) #フレームを切り出す
             undistort_frames = module.undistort_frames.undistort_frames(frames, movie_info) #補正
             sum_img = module.sum_frames.sum_frames(undistort_frames, param) #集合画像
-            #cv2.imwrite("sum_imgs/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
+            #cv2.imwrite("sum_imgs_main/{}_{}_{}.jpg".format(ruck_num, which_side, shoot_position), sum_img)
             mask_info = module.get_mask_info.get_mask_info(sum_img, movie_info, param)  #mask_info...["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
             
             lamp_imgs = module.get_lamp_imgs.get_lamp_imgs(mask_info, undistort_frames, param)

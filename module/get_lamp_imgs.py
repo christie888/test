@@ -47,6 +47,7 @@ def get_lamp_imgs(mask_info, undistort_frames, param):
     
     for i, frame in enumerate(undistort_frames):
         for row in mask_info.itertuples():
+            print(i, ":", row)
             x = int(row.x)
             y = int(row.y)
             #box = frame[y-side/2:y+side/2, x-side/2:x+side/2]

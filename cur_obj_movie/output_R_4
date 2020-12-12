@@ -1,0 +1,5 @@
+,ruck_num,which_side,shoot_position,time_log,group_num,num_of_groups,lamp_num,num_of_lamps,x,y
+0,output,R,4,20201119130408,0,1,0,4,155,443
+1,output,R,4,20201119130408,0,1,1,4,252,445
+2,output,R,4,20201119130408,0,1,2,4,1150,491
+3,output,R,4,20201119130408,0,1,3,4,1187,492
