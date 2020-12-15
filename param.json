@@ -17,10 +17,14 @@
     },
     
     "get_mask_info":{
-        "remove_frame_thick":100,
-        "filter_n_pixels":[50, 600],
+        "remove_frame_thick_Left":100,
+        "remove_frame_thick_Right":100,
+        "remove_frame_thick_Top":100,
+        "remove_frame_thick_Bottom":100,
+        "filter_pixels":[50, 600],
         "filter_w": [10, 50],
-        "filter_h":[10, 50]
+        "filter_h":[10, 50],
+        "group_y_range":200
     },
     
     "get_lamp_imgs":{
@@ -36,5 +40,14 @@
         "yellow_h":[25,35],
         "green_h":[35, 55],
         "blue_h":[100,130]
+    },
+    
+    "main":{
+        "delta_r_grouping":100,
+        "delta_r":30,
+        "delta_d":10
     }
+    
 }
+    
+    

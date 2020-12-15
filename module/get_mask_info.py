@@ -27,13 +27,18 @@ from sklearn.cluster import KMeans
 
 import operator
 
+import inspect  #呼び出し元ファイルの取得
+
 
 
 """
 sum_imgをフィルタリングしてマスク情報を取得する関数
 """
 #input: sum_img
-#output: mask_info...["ruck_num", "which_side", "shoot_position", time_log, "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"]
+#output: mask_info -------------------------------------------------
+# "ruck_num", "which_side", "shoot_position", time_log, 
+# "x", "y", "group_num", "num_of_groups", "lamp_num", "num_of_lamps"
+# ------------------------------------------------------------------
 
 def get_mask_info(sum_img, movie_info, param):
     #オブジェクト化-----------------------------------------------------------------------------------------
@@ -49,23 +54,30 @@ def get_mask_info(sum_img, movie_info, param):
 
     #フィルター -----------------------------------
     delete_index = []  #フィルターを通過できなかったオブジェクトインデックスを格納
-    thick = param["get_mask_info"]["remove_frame_thick"]  #画像から縁を切り取る時の厚さ
+    thick_min = param["get_lamp_imgs"]["img_side"]/2  #lamp_imgは param["get_lamp_imgs"]["img_side"] を一辺とする正方形で切り取るので最低その半分の厚みの除去フレームは必須
+    thick_L = param["get_mask_info"]["remove_frame_thick_Left"]  #画像から縁を切り取る時の厚さ
+    thick_R = param["get_mask_info"]["remove_frame_thick_Right"]
+    thick_T = param["get_mask_info"]["remove_frame_thick_Top"]
+    thick_B = param["get_mask_info"]["remove_frame_thick_Bottom"]
     for row in stats_df.itertuples():
         #フィルター１：thickよりも内側にあるか.
-        #lamp_imgは(50,50,3)で切り取れないといけないのでこれは必須のフィルター. さらにこのtmpをいじればフレーム内の対象とする範囲を絞ることができるのでさらなるフィルターになる。
-        #また撮影ポジションによる上下左右のダブり問題に関してもここの調整で対応できる.　これは重要なので後で調整方法について検討
-        if (row.x < thick or row.x > param["frame_w"]-thick or row.y < thick or row.y > param["frame_h"]-thick):
-            delete_index.append(row.Index)
-            continue
+        if inspect.stack()[1].filename == "main.py": # 呼び出し元がmain.pyだった時はフレームをかけたくないのでこの処理を飛ばす.
+            if (row.x < thick_min or row.x > param["frame_w"]-thick_min or row.y < thick_min or row.y > param["frame_h"]-thick_min):
+                delete_index.append(row.Index)
+                continue
+        else:
+            if (row.x < thick_L or row.x > param["frame_w"]-thick_R or row.y < thick_T or row.y > param["frame_h"]-thick_B):
+                delete_index.append(row.Index)
+                continue
         """
         #フィルター２：ピクセル数
-        if (row.pixel <= param["get_mask_info"]["filter_n_pixels"][0] or row.pixel >= param["get_mask_info"]["filter_n_pixels"][1]):
+        if (row.pixel <= param["get_mask_info"]["filter_pixels"][0] or row.pixel >= param["get_mask_info"]["filter_pixels"][1]):
             delete_index.append(row.Index)
             continue
         """
         #フィルター３：幅、高さ
-        if (row.w <= param["get_mask_info"]["filter_w"][0] or row.w >= param["get_mask_info"]["filter_w"][1]
-            or row.h <= param["get_mask_info"]["filter_h"][0] or row.h >= param["get_mask_info"]["filter_h"][1]):
+        if (row.w <= param["get_mask_info"]["filter_w"][0] or row.w >= param["get_mask_info"]["filter_w"][1] or 
+            row.h <= param["get_mask_info"]["filter_h"][0] or row.h >= param["get_mask_info"]["filter_h"][1]):
             delete_index.append(row.Index)
             continue
 
@@ -88,7 +100,7 @@ def get_mask_info(sum_img, movie_info, param):
     _stats_df = sorted(_stats_df, key=operator.itemgetter(1))  #1..."y"
 
     tmp = None
-    threshold = 200   #閾値 px
+    threshold = param["get_mask_info"]["group_y_range"]  #閾値 px
 
     result_groups = []
     i = 0

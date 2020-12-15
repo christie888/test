@@ -196,7 +196,6 @@ def get_lamp_state(lamp_imgs, mask_info, param):
             most = counter.most_common()
             state.iat[i, 10] = most[0][0]
             state.iat[i, 11]  = "L"
-    print(state)
     #--------------------
     
     
