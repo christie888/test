@@ -18,7 +18,7 @@ import PIL   #PILのインストールはできないのに、その後継者の
 from PIL import Image
 import glob
 
-from IPython.display import display
+#from IPython.display import display
 
 import pandas as pd
 import openpyxl

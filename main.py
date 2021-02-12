@@ -85,7 +85,8 @@ def main():
     path = "1130/"
     files = os.listdir(path)
     files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
-    files_list.remove('.DS_Store')
+
+    #files_list.remove('.DS_Store')
     print("ソート前：", files_list)
 
     #パラメータの読み込み

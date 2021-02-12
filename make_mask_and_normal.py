@@ -16,10 +16,10 @@ from sklearn.cluster import KMeans
 
 import PIL   #PILのインストールはできない. その後継のpillowをインストールするとimportできるようになる
 from PIL import Image
-from moviepy.editor import ImageSequenceClip
+#from moviepy.editor import ImageSequenceClip
 
 
-from IPython.display import display
+#from IPython.display import display
 
 
 import pandas as pd

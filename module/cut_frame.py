@@ -15,7 +15,7 @@ import sklearn
 from sklearn.cluster import KMeans 
 import PIL   #PILのインストールはできないのに、その後継者のpillowをインストールするとimportできるようになる不思議設定
 from PIL import Image
-from IPython.display import display
+#from IPython.display import display
 
 import pandas as pd
 import openpyxl
